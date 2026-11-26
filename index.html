@@ -1,0 +1,3009 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giải Bài 3 (Hình-5.1) — CAD 3D &amp; 3 Hình chiếu TCVN (O'X'Y'Z')</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=STIX+Two+Text:ital,wght@1,600;1,700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+            math: ['"STIX Two Text"', 'Georgia', 'serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+    .cad-card {
+      background-color: #ffffff;
+      box-shadow: 0 8px 26px -6px rgba(15, 23, 42, 0.08), 0 2px 8px -2px rgba(15, 23, 42, 0.04);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #threeCanvas {
+      touch-action: none;
+      cursor: grab;
+    }
+    #threeCanvas:active {
+      cursor: grabbing;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased">
+
+  <!-- Thanh tiêu đề & Điều hướng góc nhìn chuẩn TCVN -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-sm shrink-0">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L3.5 7v10L12 22l8.5-5V7L12 2z" />
+            <path d="M12 12l8.5-5" />
+            <path d="M12 12v10" />
+            <path d="M12 12L3.5 7" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+              Bài 3 (Hình-5.1): Mô hình 3D &amp; 3 Hình chiếu (<span class="font-math italic">O'X'Y'Z'</span>)
+            </h1>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+              82 × 46 × 40 • TCVN
+            </span>
+          </div>
+          <p class="text-xs text-slate-500">
+            Trục đo vuông góc đều 120° (<span class="font-math italic">p = q = r = 1</span>) • Rãnh <span class="font-mono">R15</span> • Trụ <span class="font-mono">Ø34</span> • Lỗ xuyên <span class="font-mono">16×20</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Các nút chuyển góc nhìn Camera -->
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <button id="btnViewIso" type="button" class="view-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 text-white shadow-sm transition cursor-pointer">
+          Trục đo vuông góc đều (O'X'Y'Z')
+        </button>
+        <button id="btnViewFront" type="button" class="view-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition cursor-pointer">
+          Hình chiếu đứng (O'X'Z')
+        </button>
+        <button id="btnViewTop" type="button" class="view-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition cursor-pointer">
+          Hình chiếu bằng (O'X'Y')
+        </button>
+        <button id="btnViewSide" type="button" class="view-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition cursor-pointer">
+          Hình chiếu cạnh (O'Y'Z')
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Khu vực nội dung chính -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-5 space-y-5">
+
+    <!-- Hàng 1: Khung nhìn 3D Three.js (8 cột) + Bảng điều khiển tương tác (4 cột) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+      <!-- Cột trái: Khung nhìn 3D Three.js -->
+      <section class="lg:col-span-8 cad-card rounded-2xl border border-slate-300 overflow-hidden flex flex-col">
+
+        <!-- Thanh chọn 4 bước dựng hình -->
+        <div class="bg-slate-50 border-b border-slate-200 px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-1 sm:gap-1.5 flex-wrap" role="tablist" aria-label="Quy trình dựng hình 4 bước">
+            <button type="button" data-step="1" class="step-tab px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5">
+              <span class="w-4 h-4 rounded-full text-[11px] flex items-center justify-center font-mono">1</span>
+              <span>Trục O'X'Y'Z'</span>
+            </button>
+            <span class="text-slate-300 text-xs">→</span>
+            <button type="button" data-step="2" class="step-tab px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5">
+              <span class="w-4 h-4 rounded-full text-[11px] flex items-center justify-center font-mono">2</span>
+              <span>Khối cơ bản &amp; R15</span>
+            </button>
+            <span class="text-slate-300 text-xs">→</span>
+            <button type="button" data-step="3" class="step-tab px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5">
+              <span class="w-4 h-4 rounded-full text-[11px] flex items-center justify-center font-mono">3</span>
+              <span>Rãnh U &amp; Gân nghiêng</span>
+            </button>
+            <span class="text-slate-300 text-xs">→</span>
+            <button type="button" data-step="4" class="step-tab px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5">
+              <span class="w-4 h-4 rounded-full text-[11px] flex items-center justify-center font-mono">4</span>
+              <span>Trụ Ø34 &amp; Lỗ 16×20</span>
+            </button>
+          </div>
+
+          <!-- Thu phóng -->
+          <div class="flex items-center gap-1">
+            <button id="btnZoomOut" type="button" title="Thu nhỏ" class="w-7 h-7 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-sm flex items-center justify-center cursor-pointer">−</button>
+            <span id="zoomLabel" class="text-[11px] font-mono font-semibold text-slate-600 w-11 text-center">100%</span>
+            <button id="btnZoomIn" type="button" title="Phóng to" class="w-7 h-7 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-sm flex items-center justify-center cursor-pointer">+</button>
+          </div>
+        </div>
+
+        <!-- Vùng Viewport 3D + Lớp phủ Vector 2D HUD -->
+        <div id="threeContainer" class="relative w-full h-[430px] sm:h-[520px] lg:h-[560px] bg-[#fdfdfb] overflow-hidden">
+          <canvas id="threeCanvas"></canvas>
+          <canvas id="hudOverlayCanvas" class="absolute inset-0 pointer-events-none"></canvas>
+
+          <!-- Nhãn góc trên trái -->
+          <div class="absolute top-3 left-3 pointer-events-none bg-white/92 backdrop-blur-xs border border-slate-200 rounded-xl px-3 py-2 shadow-xs">
+            <div id="hudViewTitle" class="text-xs font-bold text-slate-800">
+              Góc nhìn: Trục đo vuông góc đều (120°)
+            </div>
+            <div id="hudSubInfo" class="text-[11px] font-mono text-slate-500 mt-0.5">
+              Gốc O' tại tâm rãnh R15 • Hệ số p = q = r = 1
+            </div>
+          </div>
+
+          <!-- Badge thông báo khi bật chế độ Cắt 1/4 -->
+          <div id="cutawayBadge" class="hidden absolute top-3 right-3 pointer-events-none bg-amber-50/95 border border-amber-300 text-amber-900 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-xs">
+            ✂ Đang cắt 1/4 góc phần tư trước-trái (lộ lỗ 16×20 thông R15)
+          </div>
+
+          <!-- Gợi ý thao tác góc dưới trái -->
+          <div class="absolute bottom-3 left-3 pointer-events-none hidden sm:flex items-center gap-2 bg-white/88 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-600">
+            <span>Kéo chuột / chạm để xoay 360° • Cuộn chuột để thu/phóng</span>
+          </div>
+
+          <!-- Khung tên kỹ thuật TCVN góc dưới phải -->
+          <div class="absolute bottom-3 right-3 pointer-events-none bg-white/95 border border-slate-800 text-[10px] shadow-xs hidden sm:block">
+            <div class="px-3 py-1 border-b border-slate-800 font-bold text-slate-900 text-center tracking-wide">
+              BÀI 3 (HÌNH-5.1) • TCVN
+            </div>
+            <div class="grid grid-cols-2 divide-x divide-slate-800">
+              <div class="px-2.5 py-1 text-slate-700 font-medium">Bao: <span class="font-mono font-bold">82×46×40</span></div>
+              <div class="px-2.5 py-1 text-sky-700 font-bold text-center">Tỉ lệ 1:1</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chú giải quy ước đường nét TCVN -->
+        <div class="bg-slate-50 border-t border-slate-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+            <div class="flex items-center gap-2">
+              <span class="inline-block w-6 h-[2.2px] bg-slate-900"></span>
+              <span><strong>Nét liền đậm:</strong> Cạnh thấy</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="inline-block w-6 border-t-2 border-dashed border-slate-500"></span>
+              <span><strong>Nét đứt:</strong> Cạnh khuất</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="inline-block w-6 border-t border-dashed border-red-600"></span>
+              <span><strong>Gạch chấm mảnh:</strong> Đường tâm / trục</span>
+            </div>
+          </div>
+          <button id="btnResetCamera" type="button" class="text-xs font-semibold text-sky-700 hover:text-sky-800 hover:underline cursor-pointer">
+            Đặt lại góc nhìn chuẩn
+          </button>
+        </div>
+      </section>
+
+      <!-- Cột phải: Bảng điều khiển & Phân tích hình học (4 cột) -->
+      <aside class="lg:col-span-4 flex flex-col gap-4">
+
+        <!-- Thẻ 1: Tiến trình dựng hình 4 bước -->
+        <div class="cad-card rounded-2xl border border-slate-200 p-4 sm:p-5">
+          <div class="flex items-center justify-between mb-2.5">
+            <span id="stepBadge" class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-sky-100 text-sky-800">
+              Bước 4 / 4
+            </span>
+            <div class="flex items-center gap-1.5">
+              <button id="btnPrevStep" type="button" class="px-2.5 py-1 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 cursor-pointer">
+                ← Trước
+              </button>
+              <button id="btnNextStep" type="button" class="px-2.5 py-1 rounded-lg bg-sky-600 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-40 cursor-pointer">
+                Tiếp theo →
+              </button>
+            </div>
+          </div>
+          <h2 id="stepTitle" class="text-sm sm:text-base font-bold text-slate-900">
+            Bước 4: Dựng trụ nổi Ø34 &amp; khoét lỗ xuyên suốt 16×20
+          </h2>
+          <p id="stepDesc" class="text-xs text-slate-600 mt-1.5 leading-relaxed">
+            Trên mặt sàn <span class="font-mono font-semibold">z = 25</span>, dựng khối trụ tròn <span class="font-mono font-semibold">Ø34</span> cao thêm <span class="font-mono font-semibold">10</span> (đỉnh <span class="font-mono font-semibold">z = 35</span>), sau đó khoét lỗ chữ nhật <span class="font-mono font-semibold">16×20</span> xuyên suốt từ <span class="font-mono font-semibold">z = 35</span> thông thẳng xuống rãnh bán trụ đáy <span class="font-mono font-semibold">R15</span>.
+          </p>
+        </div>
+
+        <!-- Thẻ 2: Tùy chọn hiển thị mô hình 3D -->
+        <div class="cad-card rounded-2xl border border-slate-200 p-4 sm:p-5 space-y-3">
+          <h2 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-sky-600"></span>
+            Chế độ cắt vật thể 3D &amp; Hiển thị
+          </h2>
+
+          <!-- Bộ chọn 4 chế độ cắt khối 3D -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-700">Chế độ cắt mô hình 3D:</span>
+              <span id="cut3DModeTag" class="text-[11px] font-mono font-semibold text-amber-700">Nguyên khối</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5" role="group" aria-label="Chế độ cắt mô hình 3D">
+              <button type="button" data-cut3d="none" class="cut3d-btn px-2.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer text-left">
+                1. Nguyên khối
+              </button>
+              <button type="button" data-cut3d="front" class="cut3d-btn px-2.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer text-left">
+                2. Cắt đứng (y = 0)
+              </button>
+              <button type="button" data-cut3d="side" class="cut3d-btn px-2.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer text-left">
+                3. Cắt cạnh (x = 0)
+              </button>
+              <button type="button" data-cut3d="quarter" class="cut3d-btn px-2.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer text-left">
+                4. Cắt 1/4 vật thể
+              </button>
+            </div>
+          </div>
+
+          <label class="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-50 transition cursor-pointer">
+            <div>
+              <span class="text-xs font-bold text-amber-950 block">Tự động đồng bộ cắt 3D theo 2D</span>
+              <span class="text-[11px] text-amber-800">Tự cắt khối 3D khi bật hình cắt đứng / cạnh</span>
+            </div>
+            <input type="checkbox" id="chkSync3DCut" checked class="w-4 h-4 accent-amber-600 rounded cursor-pointer" />
+          </label>
+
+          <label class="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
+            <span class="text-xs font-semibold text-slate-800">
+              Hiển thị nét đứt cạnh khuất bên trong
+            </span>
+            <input type="checkbox" id="chkHiddenLines" checked class="w-4 h-4 accent-sky-600 rounded cursor-pointer" />
+          </label>
+
+          <label class="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
+            <span class="text-xs font-semibold text-slate-800">
+              Hệ trục <span class="font-math italic">O'X'Y'Z'</span> với cung góc 120° &amp; 30°
+            </span>
+            <input type="checkbox" id="chkAxes" checked class="w-4 h-4 accent-sky-600 rounded cursor-pointer" />
+          </label>
+
+          <label class="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
+            <span class="text-xs font-semibold text-slate-800">
+              Ghi kích thước 3D (<span class="font-mono text-amber-700">82, 46, 40, Ø34, R15...</span>)
+            </span>
+            <input type="checkbox" id="chkDims3D" checked class="w-4 h-4 accent-sky-600 rounded cursor-pointer" />
+          </label>
+        </div>
+
+        <!-- Thẻ 3: Giải mã cấu tạo hình học Bài 3 -->
+        <div class="bg-sky-50/75 rounded-2xl border border-sky-200 p-4 sm:p-5 space-y-2.5">
+          <h2 class="text-xs font-bold text-sky-950 uppercase tracking-wider flex items-center gap-2">
+            <span class="w-1.5 h-4 rounded-full bg-amber-500"></span>
+            Phân tích kết cấu Bài 3 (Hình-5.1)
+          </h2>
+          <ul class="text-xs text-slate-700 space-y-2 leading-relaxed">
+            <li class="flex items-start gap-2">
+              <span class="mt-0.5 w-4 h-4 rounded-full bg-sky-600 text-white font-mono text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
+              <span>
+                <strong>Thân chữ U &amp; hai tai đế:</strong> Đế dài <span class="font-mono">82</span>, hai tai hai bên dài <span class="font-mono">10</span> cao <span class="font-mono">10</span>. Thân giữa dài <span class="font-mono">62</span> cao <span class="font-mono">40</span>, khoét rãnh chữ U rộng <span class="font-mono">42</span> sâu <span class="font-mono">15</span> (mặt sàn ở <span class="font-mono">z = 25</span>).
+              </span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="mt-0.5 w-4 h-4 rounded-full bg-sky-600 text-white font-mono text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
+              <span>
+                <strong>Hai gân nghiêng rộng 30:</strong> Đặt đối xứng trên hai tai đế (<span class="font-mono">y ∈ [-15, 15]</span>), vát thẳng từ độ cao <span class="font-mono">10</span> lên đỉnh thành chữ U cao <span class="font-mono">40</span>.
+              </span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="mt-0.5 w-4 h-4 rounded-full bg-sky-600 text-white font-mono text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
+              <span>
+                <strong>Giao tuyến lỗ 16×20 với rãnh R15:</strong> Hai vách <span class="font-mono">x = ±8</span> cắt mặt trụ đáy <span class="font-mono">R15</span> tại cao độ <span class="font-mono">z = √(15² − 8²) ≈ 12.69</span> — đó là điểm dừng của hai nét đứt đứng trên Hình chiếu đứng.
+              </span>
+            </li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Hàng 2: Bảng bản vẽ 2D đồng bộ — 3 Hình chiếu vuông góc chuẩn TCVN -->
+    <section class="cad-card rounded-2xl border border-slate-300 overflow-hidden">
+      <div class="bg-slate-50 border-b border-slate-200 px-4 sm:px-6 py-3.5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-slate-900">
+              Bản vẽ 2D Đồng bộ: 3 Hình chiếu &amp; Hình cắt chuẩn TCVN (Hệ E)
+            </h2>
+            <p class="text-xs text-slate-500">
+              Chọn chế độ cắt riêng cho <strong>Hình chiếu đứng (y = 0)</strong> và <strong>Hình chiếu cạnh (x = 0)</strong> — tự động cập nhật ký hiệu nét cắt <span class="font-mono font-semibold">A-A, B-B</span> trên Hình chiếu bằng
+            </p>
+          </div>
+          <div class="flex items-center gap-4 flex-wrap">
+            <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+              <input type="checkbox" id="chk2DProjectors" checked class="w-4 h-4 accent-sky-600 rounded cursor-pointer" />
+              <span>Đường gióng liên hệ</span>
+            </label>
+            <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+              <input type="checkbox" id="chk2DDims" checked class="w-4 h-4 accent-sky-600 rounded cursor-pointer" />
+              <span>Kích thước 2D</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Bộ điều khiển Hình cắt đứng & Hình cắt cạnh chuẩn TCVN -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+          <!-- Điều khiển Hình chiếu đứng -->
+          <div class="bg-white rounded-xl border border-slate-200 p-2.5 sm:p-3 flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-sky-600"></span>
+                Hình chiếu đứng (<span class="font-math italic">O'X'Z'</span>, cắt <span class="font-mono">y = 0</span>)
+              </span>
+              <span id="frontSecBadge" class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">Không cắt</span>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button type="button" data-fsec="none" class="fsec-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer">
+                Không cắt
+              </button>
+              <button type="button" data-fsec="half" class="fsec-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer">
+                Cắt bán phần (1/2)
+              </button>
+              <button type="button" data-fsec="full" class="fsec-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer">
+                Cắt toàn phần (A-A)
+              </button>
+            </div>
+          </div>
+
+          <!-- Điều khiển Hình chiếu cạnh -->
+          <div class="bg-white rounded-xl border border-slate-200 p-2.5 sm:p-3 flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+                Hình chiếu cạnh (<span class="font-math italic">O'Y'Z'</span>, cắt <span class="font-mono">x = 0</span>)
+              </span>
+              <span id="sideSecBadge" class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">Không cắt</span>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button type="button" data-ssec="none" class="ssec-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer">
+                Không cắt
+              </button>
+              <button type="button" data-ssec="half" class="ssec-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer">
+                Cắt bán phần (1/2)
+              </button>
+              <button type="button" data-ssec="full" class="ssec-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer">
+                Cắt toàn phần (B-B)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ghi chú quy tắc TCVN trực quan theo chế độ cắt đang bật -->
+        <div id="tcvnSectionNote" class="text-xs text-slate-700 bg-sky-50/80 border border-sky-200 rounded-xl px-3.5 py-2 leading-relaxed">
+          <strong>Quy tắc TCVN hiện hành:</strong> Đang hiển thị 3 hình chiếu vuông góc tiêu chuẩn; các cạnh khuất bên trong (lỗ <span class="font-mono">16×20</span>, vòm <span class="font-mono">R15</span>, sàn rãnh <span class="font-mono">U</span>) được biểu diễn bằng <strong>nét đứt mảnh</strong>.
+        </div>
+      </div>
+
+      <div id="drawing2DContainer" class="w-full h-[560px] sm:h-[640px] lg:h-[680px] bg-[#fdfdfb]">
+        <canvas id="drawing2DCanvas"></canvas>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    /**
+     * ============================================================================
+     * ỨNG DỤNG CAD 3D (THREE.JS) & BẢN VẼ 2D 3 HÌNH CHIẾU TCVN - BÀI 3 (HÌNH-5.1)
+     * ============================================================================
+     * Hệ tọa độ chuẩn của vật thể:
+     *   - x ∈ [-41, 41] : Chiều dài 82 (Gốc O' tại x = 0).
+     *   - y ∈ [-23, 23] : Chiều rộng/sâu 46 (Gốc O' tại y = 0).
+     *   - z ∈ [0, 40]   : Chiều cao 40 (Gốc O' tại tâm đáy rãnh bán trụ R15, z = 0).
+     *
+     * Ánh xạ sang không gian Three.js (X3D, Y3D, Z3D):
+     *   - X3D = x       (Trái -> Phải)
+     *   - Y3D = z       (Dưới -> Trên, thẳng đứng)
+     *   - Z3D = -y      (Sau -> Trước, hướng về người quan sát ở Hình chiếu đứng)
+     */
+    (function () {
+      const state = {
+        step: 4, // 1..4
+        cutMode3D: 'none', // 'none' | 'front' | 'side' | 'quarter'
+        sync3DCut: true,
+        frontSection: 'none', // 'none' | 'half' | 'full'
+        sideSection: 'none',  // 'none' | 'half' | 'full'
+        showHiddenLines: true,
+        showAxes: true,
+        showDims3D: true,
+        show2DProjectors: true,
+        show2DDims: true,
+
+        // Điều khiển camera trực giao Three.js
+        // Trục đo vuông góc đều: hướng nhìn từ (-1, +1, +1) -> O'Z' thẳng đứng, O'X' nghiêng trái 30°, O'Y' nghiêng phải 30°
+        theta: -Math.PI / 4, // góc phương vị quanh Y3D
+        phi: Math.acos(1 / Math.sqrt(3)), // góc cực từ +Y3D (~54.7356° -> pitch 35.2644°)
+        targetTheta: -Math.PI / 4,
+        targetPhi: Math.acos(1 / Math.sqrt(3)),
+        zoom: 1.0,
+        targetZoom: 1.0,
+        activePreset: 'iso',
+      };
+
+      const ISO_THETA = -Math.PI / 4;
+      const ISO_PHI = Math.acos(1 / Math.sqrt(3));
+      const TARGET_CENTER = new THREE.Vector3(0, 17, 0);
+
+      // Chuyển đổi từ tọa độ kỹ thuật (x, y, z) sang THREE.Vector3
+      function cadToThree(x, y, z) {
+        return new THREE.Vector3(x, z, -y);
+      }
+
+      // ==========================================================================
+      // 1. KHỞI TẠO SCENE, CAMERA TRỰC GIAO & RENDERER THREE.JS
+      // ==========================================================================
+      const threeContainer = document.getElementById('threeContainer');
+      const threeCanvas = document.getElementById('threeCanvas');
+      const hudCanvas = document.getElementById('hudOverlayCanvas');
+      const hudCtx = hudCanvas.getContext('2d');
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xfdfdfb);
+
+      const camera = new THREE.OrthographicCamera(-65, 65, 50, -50, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer({
+        canvas: threeCanvas,
+        antialias: true,
+        powerPreference: 'high-performance',
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+      // Hệ thống chiếu sáng kỹ thuật CAD dịu nhẹ, làm rõ từng mặt phẳng & mặt trụ
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.66);
+      scene.add(ambientLight);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 0.48);
+      keyLight.position.set(-70, 130, 95);
+      scene.add(keyLight);
+
+      const fillLight = new THREE.DirectionalLight(0xe0f2fe, 0.25);
+      fillLight.position.set(90, 50, -80);
+      scene.add(fillLight);
+
+      const bottomLight = new THREE.DirectionalLight(0xf8fafc, 0.16);
+      bottomLight.position.set(0, -100, 30);
+      scene.add(bottomLight);
+
+      // Nhóm chứa các đối tượng 3D
+      const modelGroup = new THREE.Group();
+      const axesGroup = new THREE.Group();
+      scene.add(modelGroup);
+      scene.add(axesGroup);
+
+      // ==========================================================================
+      // 2. BỘ DỰNG HÌNH HỌC B-REP CHÍNH XÁC TỪNG MILIMET CHO BÀI 3 (HÌNH-5.1)
+      // ==========================================================================
+      function createMeshBuilder() {
+        const positions = [];
+        const normals = [];
+        const visibleEdges = []; // các đoạn thẳng [v1, v2] (cạnh thấy / cạnh sắc)
+        const hiddenEdges = [];  // các đoạn thẳng [v1, v2] (đường sinh phụ trợ / nét đứt)
+        const hatchLines = [];   // các đoạn gạch mặt cắt 45° khi cắt 1/4
+
+        const pushTri = (a, b, c) => {
+          const va = cadToThree(a[0], a[1], a[2]);
+          const vb = cadToThree(b[0], b[1], b[2]);
+          const vc = cadToThree(c[0], c[1], c[2]);
+          const e1 = new THREE.Vector3().subVectors(vb, va);
+          const e2 = new THREE.Vector3().subVectors(vc, va);
+          const n = new THREE.Vector3().crossVectors(e1, e2).normalize();
+          positions.push(va.x, va.y, va.z, vb.x, vb.y, vb.z, vc.x, vc.y, vc.z);
+          normals.push(n.x, n.y, n.z, n.x, n.y, n.z, n.x, n.y, n.z);
+        };
+
+        const pushQuad = (a, b, c, d) => {
+          pushTri(a, b, c);
+          pushTri(a, c, d);
+        };
+
+        const addEdge = (a, b, targetList = visibleEdges) => {
+          targetList.push(cadToThree(a[0], a[1], a[2]), cadToThree(b[0], b[1], b[2]));
+        };
+
+        const addPolyline = (pts, closed = true, targetList = visibleEdges) => {
+          for (let i = 0; i < pts.length - 1; i++) {
+            addEdge(pts[i], pts[i + 1], targetList);
+          }
+          if (closed && pts.length > 2) {
+            addEdge(pts[pts.length - 1], pts[0], targetList);
+          }
+        };
+
+        // Tam giác hóa đa giác phẳng 2D (hỗ trợ cả đa giác lồi & lõm như rãnh R15)
+        const triangulate2D = (pts) => {
+          const n = pts.length;
+          if (n < 3) return [];
+          let area = 0;
+          for (let i = 0; i < n; i++) {
+            const p = pts[i];
+            const q = pts[(i + 1) % n];
+            area += p[0] * q[1] - q[0] * p[1];
+          }
+          const ccw = area >= 0;
+          const indices = [];
+          for (let i = 0; i < n; i++) indices.push(i);
+
+          const cross = (a, b, c) =>
+            (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+
+          const pointInTri = (p, a, b, c) => {
+            const c1 = cross(a, b, p);
+            const c2 = cross(b, c, p);
+            const c3 = cross(c, a, p);
+            if (ccw) return c1 >= -1e-7 && c2 >= -1e-7 && c3 >= -1e-7;
+            return c1 <= 1e-7 && c2 <= 1e-7 && c3 <= 1e-7;
+          };
+
+          const tris = [];
+          let guard = 0;
+          while (indices.length > 3 && guard < n * n + 10) {
+            guard++;
+            let earFound = false;
+            const m = indices.length;
+            for (let i = 0; i < m; i++) {
+              const iPrev = indices[(i - 1 + m) % m];
+              const iCurr = indices[i];
+              const iNext = indices[(i + 1) % m];
+              const a = pts[iPrev];
+              const b = pts[iCurr];
+              const c = pts[iNext];
+              const cr = cross(a, b, c);
+              const isConvex = ccw ? cr > 1e-7 : cr < -1e-7;
+              if (!isConvex) continue;
+
+              let hasPointInside = false;
+              for (let j = 0; j < m; j++) {
+                const idx = indices[j];
+                if (idx === iPrev || idx === iCurr || idx === iNext) continue;
+                if (pointInTri(pts[idx], a, b, c)) {
+                  hasPointInside = true;
+                  break;
+                }
+              }
+              if (!hasPointInside) {
+                if (ccw) tris.push([iPrev, iCurr, iNext]);
+                else tris.push([iPrev, iNext, iCurr]);
+                indices.splice(i, 1);
+                earFound = true;
+                break;
+              }
+            }
+            if (!earFound) {
+              for (let k = 1; k < indices.length - 1; k++) {
+                if (ccw) tris.push([indices[0], indices[k], indices[k + 1]]);
+                else tris.push([indices[0], indices[k + 1], indices[k]]);
+              }
+              break;
+            }
+          }
+          if (indices.length === 3) {
+            if (ccw) tris.push([indices[0], indices[1], indices[2]]);
+            else tris.push([indices[0], indices[2], indices[1]]);
+          }
+          return tris;
+        };
+
+        // Đùn đa giác tiết diện (x, z) dọc theo trục y từ yMin đến yMax
+        const extrudeXZPolygon = (
+          rawPoly2D,
+          yMin,
+          yMax,
+          capFront = true,
+          capBack = true,
+          edgeFront = true,
+          edgeBack = true
+        ) => {
+          const poly2D = [];
+          for (let i = 0; i < rawPoly2D.length; i++) {
+            const pt = rawPoly2D[i];
+            const prev = poly2D[poly2D.length - 1];
+            if (!prev || Math.hypot(pt[0] - prev[0], pt[1] - prev[1]) > 1e-5) {
+              poly2D.push(pt);
+            }
+          }
+          if (
+            poly2D.length > 1 &&
+            Math.hypot(
+              poly2D[0][0] - poly2D[poly2D.length - 1][0],
+              poly2D[0][1] - poly2D[poly2D.length - 1][1]
+            ) <= 1e-5
+          ) {
+            poly2D.pop();
+          }
+          const n = poly2D.length;
+          if (n < 3) return;
+
+          const tris = triangulate2D(poly2D);
+          if (capFront) {
+            tris.forEach(([i0, i1, i2]) => {
+              pushTri(
+                [poly2D[i0][0], yMin, poly2D[i0][1]],
+                [poly2D[i1][0], yMin, poly2D[i1][1]],
+                [poly2D[i2][0], yMin, poly2D[i2][1]]
+              );
+            });
+          }
+          if (capBack) {
+            tris.forEach(([i0, i1, i2]) => {
+              pushTri(
+                [poly2D[i0][0], yMax, poly2D[i0][1]],
+                [poly2D[i2][0], yMax, poly2D[i2][1]],
+                [poly2D[i1][0], yMax, poly2D[i1][1]]
+              );
+            });
+          }
+
+          for (let i = 0; i < n; i++) {
+            const p0 = poly2D[i];
+            const p1 = poly2D[(i + 1) % n];
+            pushQuad(
+              [p0[0], yMin, p0[1]],
+              [p1[0], yMin, p1[1]],
+              [p1[0], yMax, p1[1]],
+              [p0[0], yMax, p0[1]]
+            );
+          }
+
+          if (edgeFront) {
+            addPolyline(
+              poly2D.map(([x, z]) => [x, yMin, z]),
+              true
+            );
+          }
+          if (edgeBack) {
+            addPolyline(
+              poly2D.map(([x, z]) => [x, yMax, z]),
+              true
+            );
+          }
+        };
+
+        return {
+          positions,
+          normals,
+          visibleEdges,
+          hiddenEdges,
+          hatchLines,
+          pushTri,
+          pushQuad,
+          addEdge,
+          addPolyline,
+          extrudeXZPolygon,
+        };
+      }
+
+      /**
+       * Xây dựng toàn bộ mô hình 3D theo Bước (1..4) và Chế độ cắt 3D:
+       *   - 'none'    : Nguyên khối
+       *   - 'front'   : Cắt theo Hình chiếu đứng (bỏ nửa trước y < 0, tô mặt cắt y = 0)
+       *   - 'side'    : Cắt theo Hình chiếu cạnh (bỏ nửa trái x < 0, tô mặt cắt x = 0)
+       *   - 'quarter' : Cắt 1/4 vật thể (bỏ góc phần tư x < 0, y < 0, tô cả hai mặt cắt y = 0 và x = 0)
+       */
+      function buildArticle3Geometry(step, cutMode) {
+        const mb = createMeshBuilder();
+        const ARC_SEGS = 48;
+
+        // Các điểm trên cung R15 từ x = -15 đến x = +15
+        const fullArc = [];
+        for (let i = 0; i <= ARC_SEGS; i++) {
+          const ang = Math.PI - (i * Math.PI) / ARC_SEGS;
+          fullArc.push([15 * Math.cos(ang), 15 * Math.sin(ang)]);
+        }
+
+        // Cung R15 từ x = -15 đến x = -8
+        const leftHoleArc = [];
+        const angMinus8 = Math.acos(-8 / 15);
+        for (let i = 0; i <= 16; i++) {
+          const ang = Math.PI - (i * (Math.PI - angMinus8)) / 16;
+          leftHoleArc.push([15 * Math.cos(ang), 15 * Math.sin(ang)]);
+        }
+
+        // Cung R15 từ x = +8 đến x = +15
+        const rightHoleArc = [];
+        const angPlus8 = Math.acos(8 / 15);
+        for (let i = 0; i <= 16; i++) {
+          const ang = angPlus8 - (i * angPlus8) / 16;
+          rightHoleArc.push([15 * Math.cos(ang), 15 * Math.sin(ang)]);
+        }
+
+        const zAt8 = Math.sqrt(225 - 64); // ≈ 12.6886
+
+        // =====================================================================
+        // BƯỚC 2: KHỐI CƠ BẢN (82 × 46 × 40) & KHOÉT RÃNH BÁN TRỤ ĐÁY R15
+        // =====================================================================
+        if (step === 2) {
+          const polyStep2 = [
+            [-41, 0],
+            [-15, 0],
+            ...fullArc.slice(1, ARC_SEGS),
+            [15, 0],
+            [41, 0],
+            [41, 40],
+            [-41, 40],
+          ];
+          const polyStep2Right = [
+            [0, 15],
+            ...fullArc.slice(ARC_SEGS / 2 + 1, ARC_SEGS),
+            [15, 0],
+            [41, 0],
+            [41, 40],
+            [0, 40],
+          ];
+
+          if (cutMode === 'none') {
+            mb.extrudeXZPolygon(polyStep2, -23, 23, true, true, true, true);
+            [-41, -15, 15, 41].forEach((x) => mb.addEdge([x, -23, 0], [x, 23, 0]));
+            [-41, 41].forEach((x) => mb.addEdge([x, -23, 40], [x, 23, 40]));
+          } else if (cutMode === 'front') {
+            mb.extrudeXZPolygon(polyStep2, 0, 23, true, true, true, true);
+            [-41, -15, 15, 41].forEach((x) => mb.addEdge([x, 0, 0], [x, 23, 0]));
+            [-41, 41].forEach((x) => mb.addEdge([x, 0, 40], [x, 23, 40]));
+            for (let c = -45; c <= 45; c += 3.2) {
+              const p1 = clipLineToRect(-41, -15, 0, 40, c);
+              if (p1) mb.addEdge([p1[0][0], 0, p1[0][1]], [p1[1][0], 0, p1[1][1]], mb.hatchLines);
+              const p2 = clipLineToRect(15, 41, 0, 40, c);
+              if (p2) mb.addEdge([p2[0][0], 0, p2[0][1]], [p2[1][0], 0, p2[1][1]], mb.hatchLines);
+              const p3 = clipLineToRect(-15, 15, 15, 40, c);
+              if (p3) mb.addEdge([p3[0][0], 0, p3[0][1]], [p3[1][0], 0, p3[1][1]], mb.hatchLines);
+            }
+          } else if (cutMode === 'side') {
+            mb.extrudeXZPolygon(polyStep2Right, -23, 23, true, true, true, true);
+            [15, 41].forEach((x) => mb.addEdge([x, -23, 0], [x, 23, 0]));
+            mb.addEdge([41, -23, 40], [41, 23, 40]);
+            mb.addEdge([0, -23, 15], [0, 23, 15]);
+            mb.addEdge([0, -23, 40], [0, 23, 40]);
+            for (let c = -25; c <= 65; c += 3.2) {
+              const p = clipLineToRect(-23, 23, 15, 40, c);
+              if (p) mb.addEdge([0, p[0][0], p[0][1]], [0, p[1][0], p[1][1]], mb.hatchLines);
+            }
+          } else if (cutMode === 'quarter') {
+            mb.extrudeXZPolygon(polyStep2, 0, 23, true, true, true, true);
+            mb.extrudeXZPolygon(polyStep2Right, -23, 0, true, false, true, false);
+            [-41, -15].forEach((x) => mb.addEdge([x, 0, 0], [x, 23, 0]));
+            [15, 41].forEach((x) => mb.addEdge([x, -23, 0], [x, 23, 0]));
+            mb.addEdge([-41, 0, 40], [-41, 23, 40]);
+            mb.addEdge([41, -23, 40], [41, 23, 40]);
+            mb.addEdge([0, -23, 15], [0, 0, 15]);
+            mb.addEdge([0, -23, 40], [0, 0, 40]);
+            for (let c = -45; c <= 45; c += 3.2) {
+              const p1 = clipLineToRect(-41, -15, 0, 40, c);
+              if (p1) mb.addEdge([p1[0][0], 0, p1[0][1]], [p1[1][0], 0, p1[1][1]], mb.hatchLines);
+              const p2 = clipLineToRect(-15, 0, 15, 40, c);
+              if (p2) mb.addEdge([p2[0][0], 0, p2[0][1]], [p2[1][0], 0, p2[1][1]], mb.hatchLines);
+            }
+            for (let c = -25; c <= 65; c += 3.2) {
+              const p = clipLineToRect(-23, 0, 15, 40, c);
+              if (p) mb.addEdge([0, p[0][0], p[0][1]], [0, p[1][0], p[1][1]], mb.hatchLines);
+            }
+          }
+          return finalizeGeometry(mb);
+        }
+
+        // =====================================================================
+        // BƯỚC 3 & BƯỚC 4:
+        //   - Đế & Thân chữ U (sàn z = 25, hai thành đứng x ∈ [-31,-21] & [21,31] cao 40)
+        //   - Hai tai đế (x ∈ [-41,-31] & [31,41], z = 10)
+        //   - Hai gân nghiêng rộng 30 (y ∈ [-15, 15], vát từ z = 10 lên z = 40)
+        //   - Rãnh bán trụ đáy R15
+        //   - (Bước 4) Trụ nổi Ø34 cao 10 (z: 25->35) & lỗ xuyên suốt 16×20
+        // =====================================================================
+        const hasHole = step === 4;
+
+        // Các đa giác tiết diện (x, z) cơ sở
+        const baseFullPoly = [
+          [-41, 0],
+          [-15, 0],
+          ...fullArc.slice(1, ARC_SEGS),
+          [15, 0],
+          [41, 0],
+          [41, 10],
+          [31, 10],
+          [31, 25],
+          [-31, 25],
+          [-31, 10],
+          [-41, 10],
+        ];
+
+        const baseRightPoly = [
+          [0, 15],
+          ...fullArc.slice(ARC_SEGS / 2 + 1, ARC_SEGS),
+          [15, 0],
+          [41, 0],
+          [41, 10],
+          [31, 10],
+          [31, 25],
+          [0, 25],
+        ];
+
+        const leftMidPoly = [
+          [-41, 0],
+          [-15, 0],
+          ...leftHoleArc.slice(1),
+          [-8, 25],
+          [-31, 25],
+          [-31, 10],
+          [-41, 10],
+        ];
+
+        const rightMidPoly = [
+          [8, zAt8],
+          ...rightHoleArc.slice(1, rightHoleArc.length - 1),
+          [15, 0],
+          [41, 0],
+          [41, 10],
+          [31, 10],
+          [31, 25],
+          [8, 25],
+        ];
+
+        // 1. Dựng phần thân dưới (z ∈ [0, 25]) theo từng chế độ cắt
+        if (cutMode === 'none') {
+          mb.extrudeXZPolygon(baseFullPoly, 10, 23, false, true, false, true);
+          mb.extrudeXZPolygon(baseFullPoly, -23, -10, true, false, true, false);
+          if (!hasHole) {
+            mb.extrudeXZPolygon(baseFullPoly, -10, 10, false, false, false, false);
+          } else {
+            mb.extrudeXZPolygon(leftMidPoly, -10, 10, false, false, false, false);
+            mb.extrudeXZPolygon(rightMidPoly, -10, 10, false, false, false, false);
+          }
+        } else if (cutMode === 'front') {
+          // Cắt bỏ y < 0, giữ lại y ∈ [0, 23]
+          mb.extrudeXZPolygon(baseFullPoly, 10, 23, false, true, false, true);
+          if (!hasHole) {
+            mb.extrudeXZPolygon(baseFullPoly, 0, 10, true, false, false, false);
+          } else {
+            mb.extrudeXZPolygon(leftMidPoly, 0, 10, true, false, false, false);
+            mb.extrudeXZPolygon(rightMidPoly, 0, 10, true, false, false, false);
+            // Vách sau của lỗ 16×20 tại y = 10 (x ∈ [-8, 8], z từ vòm R15 lên z = 25)
+            const holeBackWallPoly = [
+              [-8, zAt8],
+              ...fullArc
+                .filter(([ax]) => ax > -8 + 1e-4 && ax < 8 - 1e-4)
+                .map(([ax, az]) => [ax, az]),
+              [8, zAt8],
+              [8, 25],
+              [-8, 25],
+            ];
+            mb.extrudeXZPolygon(holeBackWallPoly, 10, 10.01, true, false, false, false);
+          }
+        } else if (cutMode === 'side') {
+          // Cắt bỏ x < 0, giữ lại x ∈ [0, 41]
+          mb.extrudeXZPolygon(baseRightPoly, 10, 23, false, true, false, true);
+          mb.extrudeXZPolygon(baseRightPoly, -23, -10, true, false, true, false);
+          if (!hasHole) {
+            mb.extrudeXZPolygon(baseRightPoly, -10, 10, false, false, false, false);
+          } else {
+            mb.extrudeXZPolygon(rightMidPoly, -10, 10, false, false, false, false);
+            // Hai vách trước/sau của lỗ 16×20 tại y = -10 và y = 10 (x ∈ [0, 8], z từ vòm R15 lên z = 25)
+            const halfHoleWallPoly = [
+              [0, 15],
+              ...fullArc
+                .filter(([ax]) => ax > 1e-4 && ax < 8 - 1e-4)
+                .map(([ax, az]) => [ax, az]),
+              [8, zAt8],
+              [8, 25],
+              [0, 25],
+            ];
+            mb.extrudeXZPolygon(halfHoleWallPoly, -10.01, -10, false, true, false, false);
+            mb.extrudeXZPolygon(halfHoleWallPoly, 10, 10.01, true, false, false, false);
+          }
+        } else if (cutMode === 'quarter') {
+          // Cắt bỏ góc phần tư x < 0, y < 0
+          mb.extrudeXZPolygon(baseFullPoly, 10, 23, false, true, false, true);
+          mb.extrudeXZPolygon(baseRightPoly, -23, -10, true, false, true, false);
+          if (!hasHole) {
+            mb.extrudeXZPolygon(baseFullPoly, 0, 10, true, false, false, false);
+            mb.extrudeXZPolygon(baseRightPoly, -10, 0, false, false, false, false);
+          } else {
+            mb.extrudeXZPolygon(leftMidPoly, 0, 10, true, false, false, false);
+            mb.extrudeXZPolygon(rightMidPoly, 0, 10, true, false, false, false);
+            mb.extrudeXZPolygon(rightMidPoly, -10, 0, false, false, false, false);
+
+            const holeBackWallPoly = [
+              [-8, zAt8],
+              ...fullArc
+                .filter(([ax]) => ax > -8 + 1e-4 && ax < 8 - 1e-4)
+                .map(([ax, az]) => [ax, az]),
+              [8, zAt8],
+              [8, 25],
+              [-8, 25],
+            ];
+            mb.extrudeXZPolygon(holeBackWallPoly, 10, 10.01, true, false, false, false);
+
+            const halfHoleWallPoly = [
+              [0, 15],
+              ...fullArc
+                .filter(([ax]) => ax > 1e-4 && ax < 8 - 1e-4)
+                .map(([ax, az]) => [ax, az]),
+              [8, zAt8],
+              [8, 25],
+              [0, 25],
+            ];
+            mb.extrudeXZPolygon(halfHoleWallPoly, -10.01, -10, false, true, false, false);
+          }
+        }
+
+        // 2. Hai thành đứng của khối chữ U (z ∈ [25, 40])
+        const yLeftWallStart = cutMode === 'front' || cutMode === 'quarter' ? 0 : -23;
+        const yRightWallStart = cutMode === 'front' ? 0 : -23;
+
+        if (cutMode !== 'side') {
+          mb.extrudeXZPolygon(
+            [[-31, 25], [-21, 25], [-21, 40], [-31, 40]],
+            yLeftWallStart,
+            23,
+            true,
+            true,
+            false,
+            false
+          );
+          [-31, -21].forEach((x) => {
+            mb.addEdge([x, yLeftWallStart, 25], [x, yLeftWallStart, 40]);
+            mb.addEdge([x, 23, 25], [x, 23, 40]);
+            mb.addEdge([x, yLeftWallStart, 40], [x, 23, 40]);
+          });
+          mb.addEdge([-31, yLeftWallStart, 40], [-21, yLeftWallStart, 40]);
+          mb.addEdge([-31, 23, 40], [-21, 23, 40]);
+        }
+
+        mb.extrudeXZPolygon(
+          [[21, 25], [31, 25], [31, 40], [21, 40]],
+          yRightWallStart,
+          23,
+          true,
+          true,
+          false,
+          false
+        );
+        [21, 31].forEach((x) => {
+          mb.addEdge([x, yRightWallStart, 25], [x, yRightWallStart, 40]);
+          mb.addEdge([x, 23, 25], [x, 23, 40]);
+          mb.addEdge([x, yRightWallStart, 40], [x, 23, 40]);
+        });
+        mb.addEdge([21, yRightWallStart, 40], [31, yRightWallStart, 40]);
+        mb.addEdge([21, 23, 40], [31, 23, 40]);
+
+        // 3. Hai gân nghiêng hai bên (y ∈ [-15, 15], vát từ z = 10 lên z = 40)
+        const yLeftRibStart = cutMode === 'front' || cutMode === 'quarter' ? 0 : -15;
+        const yRightRibStart = cutMode === 'front' ? 0 : -15;
+
+        if (cutMode !== 'side') {
+          mb.extrudeXZPolygon(
+            [[-41, 10], [-31, 10], [-31, 40]],
+            yLeftRibStart,
+            15,
+            true,
+            true,
+            false,
+            false
+          );
+          mb.addEdge([-41, yLeftRibStart, 10], [-31, yLeftRibStart, 40]);
+          mb.addEdge([-41, 15, 10], [-31, 15, 40]);
+          mb.addEdge([-41, yLeftRibStart, 10], [-41, 15, 10]);
+          mb.addEdge([-31, yLeftRibStart, 40], [-31, 15, 40]);
+        }
+
+        mb.extrudeXZPolygon(
+          [[31, 10], [41, 10], [31, 40]],
+          yRightRibStart,
+          15,
+          true,
+          true,
+          false,
+          false
+        );
+        mb.addEdge([41, yRightRibStart, 10], [31, yRightRibStart, 40]);
+        mb.addEdge([41, 15, 10], [31, 15, 40]);
+        mb.addEdge([41, yRightRibStart, 10], [41, 15, 10]);
+        mb.addEdge([31, yRightRibStart, 40], [31, 15, 40]);
+
+        // 4. (Bước 4) Khối trụ nổi Ø34 (R = 17, z ∈ [25, 35]) + lỗ chữ nhật 16×20
+        if (hasHole) {
+          buildBossWithRectangularHole(mb, cutMode);
+        }
+
+        // 5. Các cạnh sắc nét & gạch mặt cắt 45° theo từng chế độ cắt
+        addEdgesAndHatchingForCutMode(mb, cutMode, hasHole, fullArc, leftHoleArc, rightHoleArc, zAt8);
+
+        return finalizeGeometry(mb);
+      }
+
+      /**
+       * Dựng khối trụ nổi Ø34 (R = 17, z: 25 -> 35) có khoét lỗ chữ nhật 16×20 (x ∈ [-8,8], y ∈ [-10,10])
+       * hỗ trợ đầy đủ 4 chế độ cắt: 'none', 'front', 'side', 'quarter'
+       */
+      function buildBossWithRectangularHole(mb, cutMode) {
+        const SEGS = 64;
+        const R = 17;
+        const zBot = 25;
+        const zTop = 35;
+
+        const rectPointAtAngle = (theta) => {
+          const c = Math.cos(theta);
+          const s = Math.sin(theta);
+          const tx = Math.abs(c) > 1e-8 ? 8 / Math.abs(c) : Infinity;
+          const ty = Math.abs(s) > 1e-8 ? 10 / Math.abs(s) : Infinity;
+          const t = Math.min(tx, ty);
+          return [t * c, t * s];
+        };
+
+        const isAngleCut = (thetaMid) => {
+          const c = Math.cos(thetaMid);
+          const s = Math.sin(thetaMid);
+          if (cutMode === 'front') return s < 0;
+          if (cutMode === 'side') return c < 0;
+          if (cutMode === 'quarter') return c < 0 && s < 0;
+          return false;
+        };
+
+        for (let i = 0; i < SEGS; i++) {
+          const t0 = (i * Math.PI * 2) / SEGS;
+          const t1 = ((i + 1) * Math.PI * 2) / SEGS;
+          const tMid = (t0 + t1) * 0.5;
+          if (isAngleCut(tMid)) continue;
+
+          const to0 = [R * Math.cos(t0), R * Math.sin(t0), zTop];
+          const to1 = [R * Math.cos(t1), R * Math.sin(t1), zTop];
+          const bo0 = [R * Math.cos(t0), R * Math.sin(t0), zBot];
+          const bo1 = [R * Math.cos(t1), R * Math.sin(t1), zBot];
+          const [ix0, iy0] = rectPointAtAngle(t0);
+          const [ix1, iy1] = rectPointAtAngle(t1);
+          const ti0 = [ix0, iy0, zTop];
+          const ti1 = [ix1, iy1, zTop];
+
+          mb.pushQuad(to0, to1, ti1, ti0);
+          mb.pushQuad(bo0, bo1, to1, to0);
+          mb.addEdge(to0, to1);
+          mb.addEdge(bo0, bo1);
+        }
+
+        // Bịt kín các mặt cắt đứng của khối trụ Ø34 (từ z = 25 đến z = 35) và vách lỗ 16×20
+        if (cutMode === 'front') {
+          // Mặt cắt y = 0: x ∈ [-17, -8] và x ∈ [8, 17], z ∈ [25, 35]
+          mb.pushQuad([-17, 0, 25], [-8, 0, 25], [-8, 0, 35], [-17, 0, 35]);
+          mb.pushQuad([8, 0, 25], [17, 0, 25], [17, 0, 35], [8, 0, 35]);
+          // Vách trong lỗ: x = -8 (y: 0->10), x = 8 (y: 0->10), y = 10 (x: -8->8)
+          mb.pushQuad([-8, 0, 25], [-8, 10, 25], [-8, 10, 35], [-8, 0, 35]);
+          mb.pushQuad([8, 0, 25], [8, 0, 35], [8, 10, 35], [8, 10, 25]);
+          mb.pushQuad([-8, 10, 25], [8, 10, 25], [8, 10, 35], [-8, 10, 35]);
+
+          mb.addPolyline([[-17, 0, zTop], [-8, 0, zTop], [-8, 10, zTop], [8, 10, zTop], [8, 0, zTop], [17, 0, zTop]], false);
+        } else if (cutMode === 'side') {
+          // Mặt cắt x = 0: y ∈ [-17, -10] và y ∈ [10, 17], z ∈ [25, 35]
+          mb.pushQuad([0, -17, 25], [0, -17, 35], [0, -10, 35], [0, -10, 25]);
+          mb.pushQuad([0, 10, 25], [0, 10, 35], [0, 17, 35], [0, 17, 25]);
+          // Vách trong lỗ: y = -10 (x: 0->8), y = 10 (x: 0->8), x = 8 (y: -10->10)
+          mb.pushQuad([0, -10, 25], [8, -10, 25], [8, -10, 35], [0, -10, 35]);
+          mb.pushQuad([0, 10, 25], [0, 10, 35], [8, 10, 35], [8, 10, 25]);
+          mb.pushQuad([8, -10, 25], [8, 10, 25], [8, 10, 35], [8, -10, 35]);
+
+          mb.addPolyline([[0, -17, zTop], [0, -10, zTop], [8, -10, zTop], [8, 10, zTop], [0, 10, zTop], [0, 17, zTop]], false);
+        } else if (cutMode === 'quarter') {
+          // Mặt cắt y = 0 (x ∈ [-17, -8]) và mặt cắt x = 0 (y ∈ [-17, -10])
+          mb.pushQuad([-17, 0, 25], [-8, 0, 25], [-8, 0, 35], [-17, 0, 35]);
+          mb.pushQuad([0, -17, 25], [0, -17, 35], [0, -10, 35], [0, -10, 25]);
+          // Vách trong lỗ lộ ra: x = 8 (y: -10->10), y = 10 (x: -8->8)
+          mb.pushQuad([8, -10, 25], [8, 10, 25], [8, 10, 35], [8, -10, 35]);
+          mb.pushQuad([-8, 10, 25], [8, 10, 25], [8, 10, 35], [-8, 10, 35]);
+
+          mb.addPolyline([[0, -10, zTop], [8, -10, zTop], [8, 10, zTop], [-8, 10, zTop], [-8, 0, zTop]], false);
+        } else {
+          mb.addPolyline(
+            [
+              [-8, -10, zTop],
+              [8, -10, zTop],
+              [8, 10, zTop],
+              [-8, 10, zTop],
+            ],
+            true
+          );
+        }
+      }
+
+      /**
+       * Tạo toàn bộ đường cạnh biên giới & gạch mặt cắt 45° cho 4 chế độ cắt 3D
+       */
+      function addEdgesAndHatchingForCutMode(
+        mb,
+        cutMode,
+        hasHole,
+        fullArc,
+        leftHoleArc,
+        rightHoleArc,
+        zAt8
+      ) {
+        const ARC_SEGS = fullArc.length - 1;
+        const step = 3.2;
+
+        if (cutMode === 'none') {
+          [-41, -15, 15, 41].forEach((x) => mb.addEdge([x, -23, 0], [x, 23, 0]));
+          [-41, -31, 31, 41].forEach((x) => mb.addEdge([x, -23, 10], [x, 23, 10]));
+          [-21, 21].forEach((x) => mb.addEdge([x, -23, 25], [x, 23, 25]));
+          [-31, 31].forEach((x) => {
+            mb.addEdge([x, -23, 25], [x, -15, 25]);
+            mb.addEdge([x, 15, 25], [x, 23, 25]);
+          });
+          if (hasHole) {
+            mb.addEdge([-8, -10, 25], [8, -10, 25]);
+            mb.addEdge([-8, 10, 25], [8, 10, 25]);
+            mb.addEdge([-8, -10, 25], [-8, 10, 25]);
+            mb.addEdge([8, -10, 25], [8, 10, 25]);
+            mb.addEdge([-8, -10, zAt8], [-8, 10, zAt8]);
+            mb.addEdge([8, -10, zAt8], [8, 10, zAt8]);
+            mb.addPolyline(leftHoleArc.map(([x, z]) => [x, -10, z]), false);
+            mb.addPolyline(leftHoleArc.map(([x, z]) => [x, 10, z]), false);
+            mb.addPolyline(rightHoleArc.map(([x, z]) => [x, -10, z]), false);
+            mb.addPolyline(rightHoleArc.map(([x, z]) => [x, 10, z]), false);
+            [[-8, -10], [-8, 10], [8, -10], [8, 10]].forEach(([hx, hy]) => {
+              mb.addEdge([hx, hy, zAt8], [hx, hy, 35]);
+            });
+          }
+          return;
+        }
+
+        if (cutMode === 'front') {
+          // Cắt bỏ y < 0, giữ lại y ∈ [0, 23]
+          [-41, -15, 15, 41].forEach((x) => mb.addEdge([x, 0, 0], [x, 23, 0]));
+          [-41, -31, 31, 41].forEach((x) => mb.addEdge([x, 0, 10], [x, 23, 10]));
+          [-21, 21].forEach((x) => mb.addEdge([x, 0, 25], [x, 23, 25]));
+          [-31, 31].forEach((x) => mb.addEdge([x, 15, 25], [x, 23, 25]));
+
+          if (!hasHole) {
+            mb.addPolyline(
+              [
+                [-41, 0, 0],
+                [-15, 0, 0],
+                ...fullArc.slice(1, ARC_SEGS).map(([x, z]) => [x, 0, z]),
+                [15, 0, 0],
+                [41, 0, 0],
+                [41, 0, 10],
+                [31, 0, 40],
+                [21, 0, 40],
+                [21, 0, 25],
+                [-21, 0, 25],
+                [-21, 0, 40],
+                [-31, 0, 40],
+                [-41, 0, 10],
+              ],
+              true
+            );
+          } else {
+            mb.addPolyline(
+              [
+                [-41, 0, 0],
+                [-15, 0, 0],
+                ...leftHoleArc.slice(1).map(([x, z]) => [x, 0, z]),
+                [-8, 0, 35],
+                [-17, 0, 35],
+                [-17, 0, 25],
+                [-21, 0, 25],
+                [-21, 0, 40],
+                [-31, 0, 40],
+                [-41, 0, 10],
+              ],
+              true
+            );
+            mb.addPolyline(
+              [
+                [8, 0, zAt8],
+                ...rightHoleArc.slice(1, rightHoleArc.length - 1).map(([x, z]) => [x, 0, z]),
+                [15, 0, 0],
+                [41, 0, 0],
+                [41, 0, 10],
+                [31, 0, 40],
+                [21, 0, 40],
+                [21, 0, 25],
+                [17, 0, 25],
+                [17, 0, 35],
+                [8, 0, 35],
+              ],
+              true
+            );
+            // Cạnh trong lỗ tại y = 10 & giao tuyến đáy
+            mb.addEdge([-8, 10, zAt8], [8, 10, zAt8]);
+            mb.addEdge([-8, 10, zAt8], [-8, 10, 35]);
+            mb.addEdge([8, 10, zAt8], [8, 10, 35]);
+            mb.addEdge([-8, 10, 25], [8, 10, 25]);
+            mb.addEdge([-8, 0, 25], [-8, 10, 25]);
+            mb.addEdge([8, 0, 25], [8, 10, 25]);
+            mb.addPolyline(leftHoleArc.map(([x, z]) => [x, 10, z]), false);
+            mb.addPolyline(rightHoleArc.map(([x, z]) => [x, 10, z]), false);
+          }
+
+          // Gạch mặt cắt 45° trên mặt phẳng y = 0 (cả trái & phải)
+          hatchPlaneY0(mb, -41, 41, hasHole, step);
+          return;
+        }
+
+        if (cutMode === 'side') {
+          // Cắt bỏ x < 0, giữ lại x ∈ [0, 41]
+          [15, 41].forEach((x) => mb.addEdge([x, -23, 0], [x, 23, 0]));
+          [31, 41].forEach((x) => mb.addEdge([x, -23, 10], [x, 23, 10]));
+          mb.addEdge([21, -23, 25], [21, 23, 25]);
+          mb.addEdge([31, -23, 25], [31, -15, 25]);
+          mb.addEdge([31, 15, 25], [31, 23, 25]);
+          mb.addEdge([0, -23, 15], [0, 23, 15]);
+
+          if (!hasHole) {
+            mb.addEdge([0, -23, 25], [0, 23, 25]);
+            mb.addEdge([0, -23, 15], [0, -23, 25]);
+            mb.addEdge([0, 23, 15], [0, 23, 25]);
+          } else {
+            mb.addPolyline(
+              [
+                [0, -23, 15],
+                [0, -10, 15],
+                [0, -10, 35],
+                [0, -17, 35],
+                [0, -17, 25],
+                [0, -23, 25],
+              ],
+              true
+            );
+            mb.addPolyline(
+              [
+                [0, 10, 15],
+                [0, 23, 15],
+                [0, 23, 25],
+                [0, 17, 25],
+                [0, 17, 35],
+                [0, 10, 35],
+              ],
+              true
+            );
+            mb.addEdge([8, -10, zAt8], [8, 10, zAt8]);
+            mb.addEdge([8, -10, zAt8], [8, -10, 35]);
+            mb.addEdge([8, 10, zAt8], [8, 10, 35]);
+            mb.addEdge([8, -10, 25], [8, 10, 25]);
+            mb.addEdge([0, -10, 25], [8, -10, 25]);
+            mb.addEdge([0, 10, 25], [8, 10, 25]);
+            mb.addPolyline(rightHoleArc.map(([x, z]) => [x, -10, z]), false);
+            mb.addPolyline(rightHoleArc.map(([x, z]) => [x, 10, z]), false);
+          }
+
+          // Gạch mặt cắt 45° trên mặt phẳng x = 0 (cả hai bên y ∈ [-23, 23])
+          hatchPlaneX0(mb, -23, 23, hasHole, step);
+          return;
+        }
+
+        // cutMode === 'quarter': Cắt bỏ x < 0, y < 0
+        [-41, -15].forEach((x) => mb.addEdge([x, 0, 0], [x, 23, 0]));
+        [15, 41].forEach((x) => mb.addEdge([x, -23, 0], [x, 23, 0]));
+        [-41, -31].forEach((x) => mb.addEdge([x, 0, 10], [x, 23, 10]));
+        [31, 41].forEach((x) => mb.addEdge([x, -23, 10], [x, 23, 10]));
+        mb.addEdge([-21, 0, 25], [-21, 23, 25]);
+        mb.addEdge([-31, 15, 25], [-31, 23, 25]);
+        mb.addEdge([21, -23, 25], [21, 23, 25]);
+        mb.addEdge([31, -23, 25], [31, -15, 25]);
+        mb.addEdge([31, 15, 25], [31, 23, 25]);
+
+        mb.addPolyline(
+          [
+            [0, -23, 15],
+            [0, 0, 15],
+            [0, 0, hasHole ? 35 : 25],
+            [0, -23, hasHole ? 35 : 25],
+          ],
+          true
+        );
+
+        if (!hasHole) {
+          mb.addPolyline(
+            [
+              [-41, 0, 0],
+              [-15, 0, 0],
+              ...fullArc.slice(1, ARC_SEGS / 2).map(([x, z]) => [x, 0, z]),
+              [0, 0, 15],
+              [0, 0, 25],
+              [-21, 0, 25],
+              [-21, 0, 40],
+              [-31, 0, 40],
+              [-41, 0, 10],
+            ],
+            true
+          );
+        } else {
+          mb.addPolyline(
+            [
+              [-41, 0, 0],
+              [-15, 0, 0],
+              ...leftHoleArc.slice(1).map(([x, z]) => [x, 0, z]),
+              [-8, 0, 35],
+              [-17, 0, 35],
+              [-17, 0, 25],
+              [-21, 0, 25],
+              [-21, 0, 40],
+              [-31, 0, 40],
+              [-41, 0, 10],
+            ],
+            true
+          );
+          mb.addEdge([8, -10, zAt8], [8, 10, zAt8]);
+          mb.addEdge([8, -10, zAt8], [8, -10, 35]);
+          mb.addEdge([8, 10, zAt8], [8, 10, 35]);
+          mb.addEdge([-8, 10, zAt8], [-8, 10, 35]);
+          mb.addEdge([-8, 10, zAt8], [8, 10, zAt8]);
+          mb.addEdge([0, -10, zAt8], [8, -10, zAt8]);
+          mb.addEdge([8, -10, 25], [8, 10, 25]);
+          mb.addEdge([-8, 10, 25], [8, 10, 25]);
+          mb.addEdge([0, -10, 25], [8, -10, 25]);
+          mb.addPolyline(rightHoleArc.map(([x, z]) => [x, -10, z]), false);
+          mb.addPolyline(rightHoleArc.map(([x, z]) => [x, 10, z]), false);
+          mb.addPolyline(leftHoleArc.map(([x, z]) => [x, 10, z]), false);
+        }
+
+        hatchPlaneX0(mb, -23, 0, hasHole, step);
+        hatchPlaneY0(mb, -41, 0, hasHole, step);
+      }
+
+      /**
+       * Gạch mặt cắt nghiêng 45° trên mặt phẳng x = 0 trong khoảng [yMin, yMax]
+       */
+      function hatchPlaneX0(mb, yMin, yMax, hasHole, step) {
+        const xOff = -0.06;
+        for (let c = -25; c <= 65; c += step) {
+          if (!hasHole) {
+            const p = clipLineToRect(yMin, yMax, 15, 25, c);
+            if (p) mb.addEdge([xOff, p[0][0], p[0][1]], [xOff, p[1][0], p[1][1]], mb.hatchLines);
+          } else {
+            // Bên trái lỗ (y ∈ [-23, -10])
+            if (yMin < -10) {
+              const p1 = clipLineToRect(yMin, Math.min(yMax, -10), 15, 25, c);
+              if (p1) mb.addEdge([xOff, p1[0][0], p1[0][1]], [xOff, p1[1][0], p1[1][1]], mb.hatchLines);
+              const p2 = clipLineToRect(Math.max(yMin, -17), Math.min(yMax, -10), 25, 35, c);
+              if (p2) mb.addEdge([xOff, p2[0][0], p2[0][1]], [xOff, p2[1][0], p2[1][1]], mb.hatchLines);
+            }
+            // Bên phải lỗ (y ∈ [10, 23])
+            if (yMax > 10) {
+              const p3 = clipLineToRect(Math.max(yMin, 10), yMax, 15, 25, c);
+              if (p3) mb.addEdge([xOff, p3[0][0], p3[0][1]], [xOff, p3[1][0], p3[1][1]], mb.hatchLines);
+              const p4 = clipLineToRect(Math.max(yMin, 10), Math.min(yMax, 17), 25, 35, c);
+              if (p4) mb.addEdge([xOff, p4[0][0], p4[0][1]], [xOff, p4[1][0], p4[1][1]], mb.hatchLines);
+            }
+          }
+        }
+      }
+
+      /**
+       * Gạch mặt cắt nghiêng 45° trên mặt phẳng y = 0 trong khoảng [xMin, xMax]
+       */
+      function hatchPlaneY0(mb, xMin, xMax, hasHole, step) {
+        const yOff = -0.06;
+        const clipArcSegment = (x0, z0, x1, z1, c) => {
+          const zArc0 = Math.sqrt(Math.max(0, 225 - x0 * x0));
+          const zArc1 = Math.sqrt(Math.max(0, 225 - x1 * x1));
+          const disc = 2 * 225 - c * c;
+          if (disc >= 0) {
+            const sqrtD = Math.sqrt(disc);
+            const roots = [(-c - sqrtD) / 2, (-c + sqrtD) / 2];
+            roots.forEach((xr) => {
+              if (xr > x0 + 1e-5 && xr < x1 - 1e-5 && xr + c >= 0) {
+                if (z0 < zArc0) {
+                  x0 = xr;
+                  z0 = xr + c;
+                } else if (z1 < zArc1) {
+                  x1 = xr;
+                  z1 = xr + c;
+                }
+              }
+            });
+          }
+          const xm = (x0 + x1) * 0.5;
+          const zm = (z0 + z1) * 0.5;
+          if (xm * xm + zm * zm >= 225 - 0.5) {
+            mb.addEdge([x0, yOff, z0], [x1, yOff, z1], mb.hatchLines);
+          }
+        };
+
+        for (let c = -50; c <= 50; c += step) {
+          // Nửa trái x < 0
+          if (xMin < 0) {
+            const pA = clipLineToRect(Math.max(xMin, -41), Math.min(xMax, -31), 0, 10, c);
+            if (pA) mb.addEdge([pA[0][0], yOff, pA[0][1]], [pA[1][0], yOff, pA[1][1]], mb.hatchLines);
+
+            const pB = clipLineToRect(Math.max(xMin, -31), Math.min(xMax, -21), 0, 40, c);
+            if (pB) mb.addEdge([pB[0][0], yOff, pB[0][1]], [pB[1][0], yOff, pB[1][1]], mb.hatchLines);
+
+            const pC = clipLineToRect(Math.max(xMin, -21), Math.min(xMax, -15), 0, 25, c);
+            if (pC) mb.addEdge([pC[0][0], yOff, pC[0][1]], [pC[1][0], yOff, pC[1][1]], mb.hatchLines);
+
+            const xLMax = hasHole ? -8 : Math.min(xMax, 0);
+            const pD = clipLineToRect(Math.max(xMin, -15), xLMax, 0, 25, c);
+            if (pD) clipArcSegment(pD[0][0], pD[0][1], pD[1][0], pD[1][1], c);
+
+            if (hasHole) {
+              const pE = clipLineToRect(Math.max(xMin, -17), -8, 25, 35, c);
+              if (pE) mb.addEdge([pE[0][0], yOff, pE[0][1]], [pE[1][0], yOff, pE[1][1]], mb.hatchLines);
+            }
+          }
+
+          // Nửa phải x > 0
+          if (xMax > 0) {
+            const xRMin = hasHole ? 8 : Math.max(xMin, 0);
+            const pD2 = clipLineToRect(xRMin, Math.min(xMax, 15), 0, 25, c);
+            if (pD2) clipArcSegment(pD2[0][0], pD2[0][1], pD2[1][0], pD2[1][1], c);
+
+            const pC2 = clipLineToRect(Math.max(xMin, 15), Math.min(xMax, 21), 0, 25, c);
+            if (pC2) mb.addEdge([pC2[0][0], yOff, pC2[0][1]], [pC2[1][0], yOff, pC2[1][1]], mb.hatchLines);
+
+            const pB2 = clipLineToRect(Math.max(xMin, 21), Math.min(xMax, 31), 0, 40, c);
+            if (pB2) mb.addEdge([pB2[0][0], yOff, pB2[0][1]], [pB2[1][0], yOff, pB2[1][1]], mb.hatchLines);
+
+            const pA2 = clipLineToRect(Math.max(xMin, 31), Math.min(xMax, 41), 0, 10, c);
+            if (pA2) mb.addEdge([pA2[0][0], yOff, pA2[0][1]], [pA2[1][0], yOff, pA2[1][1]], mb.hatchLines);
+
+            if (hasHole) {
+              const pE2 = clipLineToRect(8, Math.min(xMax, 17), 25, 35, c);
+              if (pE2) mb.addEdge([pE2[0][0], yOff, pE2[0][1]], [pE2[1][0], yOff, pE2[1][1]], mb.hatchLines);
+            }
+          }
+        }
+      }
+
+      /**
+       * Gạch mặt cắt nghiêng 45° trên mặt phẳng y = 0 trong khoảng [xMin, xMax]
+       */
+      function hatchPlaneY0(mb, xMin, xMax, hasHole, step) {
+        const clipArcSegment = (x0, z0, x1, z1, c) => {
+          const zArc0 = Math.sqrt(Math.max(0, 225 - x0 * x0));
+          const zArc1 = Math.sqrt(Math.max(0, 225 - x1 * x1));
+          const disc = 2 * 225 - c * c;
+          if (disc >= 0) {
+            const sqrtD = Math.sqrt(disc);
+            const roots = [(-c - sqrtD) / 2, (-c + sqrtD) / 2];
+            roots.forEach((xr) => {
+              if (xr > x0 + 1e-5 && xr < x1 - 1e-5 && xr + c >= 0) {
+                if (z0 < zArc0) {
+                  x0 = xr;
+                  z0 = xr + c;
+                } else if (z1 < zArc1) {
+                  x1 = xr;
+                  z1 = xr + c;
+                }
+              }
+            });
+          }
+          const xm = (x0 + x1) * 0.5;
+          const zm = (z0 + z1) * 0.5;
+          if (xm * xm + zm * zm >= 225 - 0.5) {
+            mb.addEdge([x0, 0, z0], [x1, 0, z1], mb.hatchLines);
+          }
+        };
+
+        for (let c = -50; c <= 50; c += step) {
+          // Nửa trái x < 0
+          if (xMin < 0) {
+            const pA = clipLineToRect(Math.max(xMin, -41), Math.min(xMax, -31), 0, 10, c);
+            if (pA) mb.addEdge([pA[0][0], 0, pA[0][1]], [pA[1][0], 0, pA[1][1]], mb.hatchLines);
+
+            const pB = clipLineToRect(Math.max(xMin, -31), Math.min(xMax, -21), 0, 40, c);
+            if (pB) mb.addEdge([pB[0][0], 0, pB[0][1]], [pB[1][0], 0, pB[1][1]], mb.hatchLines);
+
+            const pC = clipLineToRect(Math.max(xMin, -21), Math.min(xMax, -15), 0, 25, c);
+            if (pC) mb.addEdge([pC[0][0], 0, pC[0][1]], [pC[1][0], 0, pC[1][1]], mb.hatchLines);
+
+            const xLMax = hasHole ? -8 : Math.min(xMax, 0);
+            const pD = clipLineToRect(Math.max(xMin, -15), xLMax, 0, 25, c);
+            if (pD) clipArcSegment(pD[0][0], pD[0][1], pD[1][0], pD[1][1], c);
+
+            if (hasHole) {
+              const pE = clipLineToRect(Math.max(xMin, -17), -8, 25, 35, c);
+              if (pE) mb.addEdge([pE[0][0], 0, pE[0][1]], [pE[1][0], 0, pE[1][1]], mb.hatchLines);
+            }
+          }
+
+          // Nửa phải x > 0
+          if (xMax > 0) {
+            const xRMin = hasHole ? 8 : Math.max(xMin, 0);
+            const pD2 = clipLineToRect(xRMin, Math.min(xMax, 15), 0, 25, c);
+            if (pD2) clipArcSegment(pD2[0][0], pD2[0][1], pD2[1][0], pD2[1][1], c);
+
+            const pC2 = clipLineToRect(Math.max(xMin, 15), Math.min(xMax, 21), 0, 25, c);
+            if (pC2) mb.addEdge([pC2[0][0], 0, pC2[0][1]], [pC2[1][0], 0, pC2[1][1]], mb.hatchLines);
+
+            const pB2 = clipLineToRect(Math.max(xMin, 21), Math.min(xMax, 31), 0, 40, c);
+            if (pB2) mb.addEdge([pB2[0][0], 0, pB2[0][1]], [pB2[1][0], 0, pB2[1][1]], mb.hatchLines);
+
+            const pA2 = clipLineToRect(Math.max(xMin, 31), Math.min(xMax, 41), 0, 10, c);
+            if (pA2) mb.addEdge([pA2[0][0], 0, pA2[0][1]], [pA2[1][0], 0, pA2[1][1]], mb.hatchLines);
+
+            if (hasHole) {
+              const pE2 = clipLineToRect(8, Math.min(xMax, 17), 25, 35, c);
+              if (pE2) mb.addEdge([pE2[0][0], 0, pE2[0][1]], [pE2[1][0], 0, pE2[1][1]], mb.hatchLines);
+            }
+          }
+        }
+      }
+
+      // Cắt đường thẳng v = u + c vào hình chữ nhật [uMin, uMax] × [vMin, vMax]
+      function clipLineToRect(uMin, uMax, vMin, vMax, c) {
+        const pts = [];
+        // u = uMin -> v = uMin + c
+        const vAtMin = uMin + c;
+        if (vAtMin >= vMin - 1e-6 && vAtMin <= vMax + 1e-6) pts.push([uMin, vAtMin]);
+        // u = uMax -> v = uMax + c
+        const vAtMax = uMax + c;
+        if (vAtMax >= vMin - 1e-6 && vAtMax <= vMax + 1e-6) pts.push([uMax, vAtMax]);
+        // v = vMin -> u = vMin - c
+        const uAtMin = vMin - c;
+        if (uAtMin > uMin + 1e-6 && uAtMin < uMax - 1e-6) pts.push([uAtMin, vMin]);
+        // v = vMax -> u = vMax - c
+        const uAtMax = vMax - c;
+        if (uAtMax > uMin + 1e-6 && uAtMax < uMax - 1e-6) pts.push([uAtMax, vMax]);
+
+        if (pts.length < 2) return null;
+        pts.sort((a, b) => a[0] - b[0]);
+        return [pts[0], pts[pts.length - 1]];
+      }
+
+      function finalizeGeometry(mb) {
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute('position', new THREE.Float32BufferAttribute(mb.positions, 3));
+        geom.setAttribute('normal', new THREE.Float32BufferAttribute(mb.normals, 3));
+
+        const visEdgeGeom = new THREE.BufferGeometry().setFromPoints(mb.visibleEdges);
+        const hatchGeom = new THREE.BufferGeometry().setFromPoints(mb.hatchLines);
+
+        return { solidGeom: geom, visEdgeGeom, hatchGeom };
+      }
+
+      // ==========================================================================
+      // 3. CẬP NHẬT MÔ HÌNH 3D & HỆ TRỤC TỌA ĐỘ O'X'Y'Z' TRONG SCENE
+      // ==========================================================================
+      function clearGroup(group) {
+        while (group.children.length > 0) {
+          const child = group.children[0];
+          group.remove(child);
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
+            else child.material.dispose();
+          }
+        }
+      }
+
+      function rebuildSceneObjects() {
+        clearGroup(modelGroup);
+        clearGroup(axesGroup);
+
+        // 1. Dựng hệ trục tọa độ vuông góc đều O'X'Y'Z' tại gốc O'(0, 0, 0)
+        if (state.showAxes) {
+          const axisSpecs = [
+            // O'X' hướng dọc theo -X (nghiêng xuống-trái 30° trong trục đo vuông góc đều)
+            { dir: cadToThree(-1, 0, 0), len: 56, color: 0x0284c7 },
+            // O'Y' hướng dọc theo -Y (nghiêng xuống-phải 30° trong trục đo vuông góc đều)
+            { dir: cadToThree(0, -1, 0), len: 42, color: 0x059669 },
+            // O'Z' hướng thẳng đứng lên +Z (90°)
+            { dir: cadToThree(0, 0, 1), len: 54, color: 0xdc2626 },
+          ];
+
+          axisSpecs.forEach(({ dir, len, color }) => {
+            const end = dir.clone().multiplyScalar(len);
+            const lineGeom = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(0, 0, 0),
+              end,
+            ]);
+            const lineMat = new THREE.LineBasicMaterial({
+              color,
+              depthTest: false,
+            });
+            const line = new THREE.Line(lineGeom, lineMat);
+            line.renderOrder = 20;
+            axesGroup.add(line);
+
+            // Mũi tên nón ở đầu trục
+            const coneGeom = new THREE.ConeGeometry(1.15, 3.6, 16);
+            const coneMat = new THREE.MeshBasicMaterial({ color, depthTest: false });
+            const cone = new THREE.Mesh(coneGeom, coneMat);
+            cone.position.copy(end);
+            cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+            cone.renderOrder = 21;
+            axesGroup.add(cone);
+          });
+
+          // Các tia trục âm kéo dài nét mảnh để dễ đối chiếu
+          const negRays = [
+            [cadToThree(0, 0, 0), cadToThree(48, 0, 0)],
+            [cadToThree(0, 0, 0), cadToThree(0, 30, 0)],
+          ];
+          negRays.forEach(([a, b]) => {
+            const g = new THREE.BufferGeometry().setFromPoints([a, b]);
+            const m = new THREE.LineDashedMaterial({
+              color: 0x94a3b8,
+              dashSize: 2.2,
+              gapSize: 1.6,
+              depthTest: false,
+            });
+            const l = new THREE.Line(g, m);
+            l.computeLineDistances();
+            l.renderOrder = 15;
+            axesGroup.add(l);
+          });
+
+          // Điểm gốc O'(0, 0, 0)
+          const originSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(1.15, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0x0f172a, depthTest: false })
+          );
+          originSphere.renderOrder = 22;
+          axesGroup.add(originSphere);
+        }
+
+        // 2. Ở Bước 1: vẽ hộp bao nét đứt 82 × 46 × 40
+        if (state.step === 1) {
+          const boxCorners = [
+            [-41, -23, 0], [41, -23, 0], [41, 23, 0], [-41, 23, 0],
+            [-41, -23, 40], [41, -23, 40], [41, 23, 40], [-41, 23, 40],
+          ].map(([x, y, z]) => cadToThree(x, y, z));
+
+          const idxPairs = [
+            [0, 1], [1, 2], [2, 3], [3, 0],
+            [4, 5], [5, 6], [6, 7], [7, 4],
+            [0, 4], [1, 5], [2, 6], [3, 7],
+          ];
+          const boxPts = [];
+          idxPairs.forEach(([i, j]) => boxPts.push(boxCorners[i], boxCorners[j]));
+          const boxGeom = new THREE.BufferGeometry().setFromPoints(boxPts);
+          const boxMat = new THREE.LineDashedMaterial({
+            color: 0x0284c7,
+            dashSize: 2.8,
+            gapSize: 1.8,
+          });
+          const boxLines = new THREE.LineSegments(boxGeom, boxMat);
+          boxLines.computeLineDistances();
+          modelGroup.add(boxLines);
+          return;
+        }
+
+        // 3. Ở Bước 2, 3, 4: dựng khối B-Rep 3D + Nét đứt khuất + Nét liền đậm thấy
+        const { solidGeom, visEdgeGeom, hatchGeom } = buildArticle3Geometry(
+          state.step,
+          state.cutMode3D
+        );
+
+        const solidMat = new THREE.MeshLambertMaterial({
+          color: 0xeaf1f8,
+          polygonOffset: true,
+          polygonOffsetFactor: 1.5,
+          polygonOffsetUnits: 1.5,
+          side: THREE.DoubleSide,
+        });
+        const mesh = new THREE.Mesh(solidGeom, solidMat);
+        mesh.renderOrder = 1;
+        modelGroup.add(mesh);
+
+        // Lớp 1 (renderOrder = 2, depthTest = false): Nét đứt cho các cạnh khuất bên trong
+        if (state.showHiddenLines) {
+          const hiddenMat = new THREE.LineDashedMaterial({
+            color: 0x64748b,
+            dashSize: 2.2,
+            gapSize: 1.6,
+            depthTest: false,
+            transparent: true,
+            opacity: 0.85,
+          });
+          const hiddenSegs = new THREE.LineSegments(visEdgeGeom, hiddenMat);
+          hiddenSegs.computeLineDistances();
+          hiddenSegs.renderOrder = 2;
+          modelGroup.add(hiddenSegs);
+        }
+
+        // Lớp 2 (renderOrder = 3, depthTest = true): Nét liền đậm cho các cạnh thấy
+        const visibleMat = new THREE.LineBasicMaterial({
+          color: 0x0f172a,
+          depthTest: true,
+        });
+        const visibleSegs = new THREE.LineSegments(visEdgeGeom, visibleMat);
+        visibleSegs.renderOrder = 3;
+        modelGroup.add(visibleSegs);
+
+        // Lớp 3: Gạch mặt cắt 45° khi bật chế độ cắt 3D
+        if (state.cutMode3D !== 'none' && hatchGeom.attributes.position.count > 0) {
+          const hatchMat = new THREE.LineBasicMaterial({
+            color: 0xb45309,
+            depthTest: true,
+          });
+          const hatchSegs = new THREE.LineSegments(hatchGeom, hatchMat);
+          hatchSegs.renderOrder = 4;
+          modelGroup.add(hatchSegs);
+        }
+      }
+
+      // ==========================================================================
+      // 4. LỚP PHỦ NHÃN TRỤC O'X'Y'Z', GÓC 120°/30° & KÍCH THƯỚC 3D SẮC NÉT
+      // ==========================================================================
+      function projectCadPoint(x, y, z, width, height) {
+        const v = cadToThree(x, y, z).project(camera);
+        return {
+          x: (v.x * 0.5 + 0.5) * width,
+          y: (-v.y * 0.5 + 0.5) * height,
+        };
+      }
+
+      function drawHudOverlay(width, height) {
+        hudCtx.clearRect(0, 0, width, height);
+
+        // 1. Nhãn trục tọa độ vuông góc đều O'X'Y'Z' & cung góc 120° / 30°
+        if (state.showAxes) {
+          const pO = projectCadPoint(0, 0, 0, width, height);
+          const pX = projectCadPoint(-58, 0, 0, width, height);
+          const pY = projectCadPoint(0, -44, 0, width, height);
+          const pZ = projectCadPoint(0, 0, 56, width, height);
+
+          if (state.activePreset === 'iso') {
+            hudCtx.save();
+            // Đường chuẩn ngang qua O'
+            hudCtx.strokeStyle = 'rgba(100, 116, 139, 0.55)';
+            hudCtx.lineWidth = 1;
+            hudCtx.setLineDash([4, 3]);
+            hudCtx.beginPath();
+            hudCtx.moveTo(pO.x - 56, pO.y);
+            hudCtx.lineTo(pO.x + 56, pO.y);
+            hudCtx.stroke();
+            hudCtx.setLineDash([]);
+
+            const angZ = Math.atan2(pZ.y - pO.y, pZ.x - pO.x);
+            const angX = Math.atan2(pX.y - pO.y, pX.x - pO.x);
+            const angY = Math.atan2(pY.y - pO.y, pY.x - pO.x);
+
+            // Cung 120° giữa O'Z' - O'X' và O'Z' - O'Y'
+            hudCtx.strokeStyle = 'rgba(2, 132, 199, 0.65)';
+            hudCtx.lineWidth = 1.25;
+            hudCtx.beginPath();
+            hudCtx.arc(pO.x, pO.y, 24, angX, angZ, false);
+            hudCtx.stroke();
+
+            hudCtx.strokeStyle = 'rgba(5, 150, 105, 0.65)';
+            hudCtx.beginPath();
+            hudCtx.arc(pO.x, pO.y, 24, angZ, angY, false);
+            hudCtx.stroke();
+
+            // Cung 30° giữa phương ngang và trục O'X'
+            hudCtx.strokeStyle = 'rgba(217, 119, 6, 0.8)';
+            hudCtx.beginPath();
+            hudCtx.arc(pO.x, pO.y, 38, angX, Math.PI, false);
+            hudCtx.stroke();
+
+            hudCtx.font = '600 10px "JetBrains Mono", monospace';
+            hudCtx.fillStyle = '#0369a1';
+            hudCtx.fillText('120°', pO.x - 36, pO.y - 16);
+            hudCtx.fillStyle = '#047857';
+            hudCtx.fillText('120°', pO.x + 14, pO.y - 16);
+            hudCtx.fillStyle = '#b45309';
+            hudCtx.fillText('30°', pO.x - 58, pO.y + 13);
+            hudCtx.restore();
+          }
+
+          const drawAxisBadge = (pt, text, color, dx = 0, dy = 0) => {
+            hudCtx.save();
+            hudCtx.font = 'italic 700 14px "STIX Two Text", Georgia, serif';
+            hudCtx.textAlign = 'center';
+            hudCtx.textBaseline = 'middle';
+            hudCtx.lineWidth = 3.5;
+            hudCtx.strokeStyle = 'rgba(253, 253, 251, 0.94)';
+            hudCtx.strokeText(text, pt.x + dx, pt.y + dy);
+            hudCtx.fillStyle = color;
+            hudCtx.fillText(text, pt.x + dx, pt.y + dy);
+            hudCtx.restore();
+          };
+
+          drawAxisBadge(pO, "O'", '#0f172a', 0, 13);
+          drawAxisBadge(pX, "X'", '#0284c7', -10, 6);
+          drawAxisBadge(pY, "Y'", '#059669', 10, 6);
+          drawAxisBadge(pZ, "Z'", '#dc2626', 0, -11);
+        }
+
+        // 2. Đường gióng & kích thước 3D trên mô hình
+        if (state.showDims3D) {
+          const drawDim3D = (a3, b3, ext3, label) => {
+            const pa = projectCadPoint(a3[0], a3[1], a3[2], width, height);
+            const pb = projectCadPoint(b3[0], b3[1], b3[2], width, height);
+            const da = projectCadPoint(a3[0] + ext3[0], a3[1] + ext3[1], a3[2] + ext3[2], width, height);
+            const db = projectCadPoint(b3[0] + ext3[0], b3[1] + ext3[1], b3[2] + ext3[2], width, height);
+
+            hudCtx.save();
+            hudCtx.strokeStyle = '#b45309';
+            hudCtx.fillStyle = '#92400e';
+            hudCtx.lineWidth = 1.05;
+
+            hudCtx.beginPath();
+            hudCtx.moveTo(pa.x, pa.y);
+            hudCtx.lineTo(da.x, da.y);
+            hudCtx.moveTo(pb.x, pb.y);
+            hudCtx.lineTo(db.x, db.y);
+            hudCtx.moveTo(da.x, da.y);
+            hudCtx.lineTo(db.x, db.y);
+            hudCtx.stroke();
+
+            const drawTip = (x1, y1, x2, y2) => {
+              const ang = Math.atan2(y2 - y1, x2 - x1);
+              const L = 6;
+              hudCtx.beginPath();
+              hudCtx.moveTo(x2, y2);
+              hudCtx.lineTo(x2 - L * Math.cos(ang - 0.3), y2 - L * Math.sin(ang - 0.3));
+              hudCtx.lineTo(x2 - L * Math.cos(ang + 0.3), y2 - L * Math.sin(ang + 0.3));
+              hudCtx.closePath();
+              hudCtx.fill();
+            };
+            drawTip(da.x, da.y, db.x, db.y);
+            drawTip(db.x, db.y, da.x, da.y);
+
+            const mx = (da.x + db.x) * 0.5;
+            const my = (da.y + db.y) * 0.5;
+            hudCtx.font = '700 11px "JetBrains Mono", monospace';
+            hudCtx.textAlign = 'center';
+            hudCtx.textBaseline = 'middle';
+            hudCtx.lineWidth = 3.5;
+            hudCtx.strokeStyle = 'rgba(253, 253, 251, 0.95)';
+            hudCtx.strokeText(label, mx, my);
+            hudCtx.fillText(label, mx, my);
+            hudCtx.restore();
+          };
+
+          // Kích thước tổng: dài 82, rộng 46, cao 40
+          drawDim3D([-41, 23, 0], [41, 23, 0], [0, 9, 0], '82');
+          drawDim3D([41, -23, 0], [41, 23, 0], [9, 0, 0], '46');
+          drawDim3D([41, 23, 0], [41, 23, 40], [9, 0, 0], '40');
+
+          if (state.step >= 2) {
+            const pCen = projectCadPoint(0, -23, 0, width, height);
+            const pArc = projectCadPoint(15 * Math.cos(Math.PI / 4), -23, 15 * Math.sin(Math.PI / 4), width, height);
+            hudCtx.save();
+            hudCtx.strokeStyle = '#0369a1';
+            hudCtx.lineWidth = 1.1;
+            hudCtx.beginPath();
+            hudCtx.moveTo(pCen.x, pCen.y);
+            hudCtx.lineTo(pArc.x, pArc.y);
+            hudCtx.stroke();
+            hudCtx.font = '700 10.5px "JetBrains Mono", monospace';
+            hudCtx.fillStyle = '#0369a1';
+            hudCtx.fillText('R15', (pCen.x + pArc.x) * 0.5 + 8, (pCen.y + pArc.y) * 0.5 - 3);
+            hudCtx.restore();
+          }
+
+          if (state.step >= 3) {
+            drawDim3D([-21, 23, 40], [21, 23, 40], [0, 0, 7], '42');
+            drawDim3D([-41, -23, 0], [-41, -23, 10], [-8, 0, 0], '10');
+          }
+
+          if (state.step === 4) {
+            const pTop = projectCadPoint(17, 0, 35, width, height);
+            hudCtx.save();
+            hudCtx.strokeStyle = '#0369a1';
+            hudCtx.lineWidth = 1.1;
+            hudCtx.beginPath();
+            hudCtx.moveTo(pTop.x, pTop.y);
+            hudCtx.lineTo(pTop.x + 18, pTop.y - 14);
+            hudCtx.lineTo(pTop.x + 48, pTop.y - 14);
+            hudCtx.stroke();
+            hudCtx.font = '700 10.5px "JetBrains Mono", monospace';
+            hudCtx.fillStyle = '#0369a1';
+            hudCtx.fillText('Ø34', pTop.x + 21, pTop.y - 18);
+            hudCtx.restore();
+          }
+        }
+      }
+
+      // ==========================================================================
+      // 5. BẢN VẼ 2D ĐỒNG BỘ: 3 HÌNH CHIẾU & HÌNH CẮT CHUẨN TCVN (HỆ E)
+      //    - Hình chiếu đứng / Hình cắt đứng (O'X'Z') — trên trái
+      //    - Hình chiếu bằng (O'X'Y') — dưới trái (kèm ký hiệu nét cắt A-A, B-B)
+      //    - Hình chiếu cạnh / Hình cắt cạnh (O'Y'Z') — trên phải
+      // ==========================================================================
+      const d2Container = document.getElementById('drawing2DContainer');
+      const d2Canvas = document.getElementById('drawing2DCanvas');
+      const d2Ctx = d2Canvas.getContext('2d');
+
+      /**
+       * Tô gạch mặt cắt nghiêng 45° chuẩn TCVN bên trong một đa giác 2D bất kỳ (tọa độ màn hình)
+       */
+      function hatch2DPolygon(ctx, screenPts, spacing = 6.5) {
+        if (!screenPts || screenPts.length < 3) return;
+        let sMin = Infinity;
+        let sMax = -Infinity;
+        for (let i = 0; i < screenPts.length; i++) {
+          const sVal = screenPts[i].x + screenPts[i].y;
+          if (sVal < sMin) sMin = sVal;
+          if (sVal > sMax) sMax = sVal;
+        }
+
+        ctx.save();
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 0.95;
+        ctx.setLineDash([]);
+
+        const startC = Math.ceil(sMin / spacing) * spacing;
+        for (let c = startC; c < sMax; c += spacing) {
+          const hits = [];
+          for (let i = 0; i < screenPts.length; i++) {
+            const a = screenPts[i];
+            const b = screenPts[(i + 1) % screenPts.length];
+            const fa = a.x + a.y - c;
+            const fb = b.x + b.y - c;
+            if ((fa <= 0 && fb > 0) || (fb <= 0 && fa > 0)) {
+              const t = fa / (fa - fb);
+              hits.push({
+                x: a.x + t * (b.x - a.x),
+                y: a.y + t * (b.y - a.y),
+              });
+            }
+          }
+          hits.sort((p, q) => p.x - q.x);
+          for (let k = 0; k + 1 < hits.length; k += 2) {
+            ctx.beginPath();
+            ctx.moveTo(hits[k].x, hits[k].y);
+            ctx.lineTo(hits[k + 1].x, hits[k + 1].y);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      function draw2DOrthographicSheet() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = d2Container.getBoundingClientRect();
+        const W = Math.max(320, Math.floor(rect.width));
+        const H = Math.max(380, Math.floor(rect.height));
+
+        if (d2Canvas.width !== Math.floor(W * dpr) || d2Canvas.height !== Math.floor(H * dpr)) {
+          d2Canvas.width = Math.floor(W * dpr);
+          d2Canvas.height = Math.floor(H * dpr);
+        }
+
+        d2Ctx.save();
+        d2Ctx.scale(dpr, dpr);
+
+        // Nền giấy kỹ thuật & khung bản vẽ TCVN
+        d2Ctx.fillStyle = '#fdfdfb';
+        d2Ctx.fillRect(0, 0, W, H);
+        d2Ctx.strokeStyle = '#64748b';
+        d2Ctx.lineWidth = 1.2;
+        d2Ctx.strokeRect(10, 10, W - 20, H - 20);
+
+        const marginX = W < 540 ? 48 : 88;
+        const marginY = W < 540 ? 48 : 60;
+        const gapX = 36;
+        const gapY = 36;
+        const scaleX = (W - marginX * 2) / (82 + gapX + 46);
+        const scaleY = (H - marginY * 2) / (40 + gapY + 46);
+        const s = Math.max(1.6, Math.min(scaleX, scaleY));
+
+        const totalDrawW = (82 + gapX + 46) * s;
+        const totalDrawH = (40 + gapY + 46) * s;
+        const originFrontX = (W - totalDrawW) * 0.5 + 41 * s;
+        const originFrontY = (H - totalDrawH) * 0.5 + 40 * s;
+
+        const originTopX = originFrontX;
+        const originTopY = originFrontY + (gapY + 23) * s;
+
+        const originSideX = originFrontX + (41 + gapX + 23) * s;
+        const originSideY = originFrontY;
+
+        const fPt = (x, z) => ({ x: originFrontX + x * s, y: originFrontY - z * s });
+        const tPt = (x, y) => ({ x: originTopX + x * s, y: originTopY - y * s });
+        const sPt = (y, z) => ({ x: originSideX + y * s, y: originSideY - z * s });
+
+        const setSolid = () => {
+          d2Ctx.setLineDash([]);
+          d2Ctx.strokeStyle = '#0f172a';
+          d2Ctx.lineWidth = 2.0;
+          d2Ctx.lineCap = 'round';
+          d2Ctx.lineJoin = 'round';
+        };
+        const setHidden = () => {
+          d2Ctx.setLineDash([5, 3.5]);
+          d2Ctx.strokeStyle = '#475569';
+          d2Ctx.lineWidth = 1.25;
+        };
+        const setCenter = () => {
+          d2Ctx.setLineDash([9, 3, 1.5, 3]);
+          d2Ctx.strokeStyle = '#dc2626';
+          d2Ctx.lineWidth = 0.95;
+        };
+        const setProjector = () => {
+          d2Ctx.setLineDash([2.5, 3.5]);
+          d2Ctx.strokeStyle = 'rgba(2, 132, 199, 0.42)';
+          d2Ctx.lineWidth = 0.85;
+        };
+
+        const line2D = (a, b) => {
+          d2Ctx.beginPath();
+          d2Ctx.moveTo(a.x, a.y);
+          d2Ctx.lineTo(b.x, b.y);
+          d2Ctx.stroke();
+        };
+
+        const strokePoly2D = (pts, closed = true) => {
+          if (!pts.length) return;
+          d2Ctx.beginPath();
+          d2Ctx.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length; i++) {
+            d2Ctx.lineTo(pts[i].x, pts[i].y);
+          }
+          if (closed) d2Ctx.closePath();
+          d2Ctx.stroke();
+        };
+
+        const zAt8 = Math.sqrt(225 - 64); // ≈ 12.6886
+        const angAt8 = Math.acos(8 / 15);
+
+        // Helper dựng cung R15 trong mặt phẳng (x, z) từ góc aStart đến aEnd
+        const buildFrontArcPts = (aStart, aEnd, segs = 28) => {
+          const arr = [];
+          for (let i = 0; i <= segs; i++) {
+            const a = aStart + ((aEnd - aStart) * i) / segs;
+            arr.push(fPt(15 * Math.cos(a), 15 * Math.sin(a)));
+          }
+          return arr;
+        };
+
+        // -----------------------------------------------------------------------
+        // A. ĐƯỜNG GIÓNG LIÊN HỆ GIỮA 3 HÌNH CHIẾU
+        // -----------------------------------------------------------------------
+        if (state.show2DProjectors) {
+          d2Ctx.save();
+          setProjector();
+          [-41, -31, -21, -15, -8, 8, 15, 21, 31, 41].forEach((x) => {
+            if (state.step === 1 && Math.abs(x) !== 41) return;
+            if (state.step === 2 && Math.abs(x) !== 41 && Math.abs(x) !== 15) return;
+            if (state.step === 3 && Math.abs(x) === 8) return;
+            line2D(fPt(x, 0), tPt(x, 23));
+          });
+          [0, 10, 15, 25, 35, 40].forEach((z) => {
+            if (state.step === 1 && z !== 0 && z !== 40) return;
+            if (state.step === 2 && z !== 0 && z !== 15 && z !== 40) return;
+            if (state.step === 3 && z === 35) return;
+            line2D(fPt(41, z), sPt(-23, z));
+          });
+          const miterPivot = { x: originSideX - 23 * s, y: originTopY - 23 * s };
+          [-23, -15, -10, 10, 15, 23].forEach((y) => {
+            if (state.step <= 2 && Math.abs(y) !== 23) return;
+            if (state.step === 3 && Math.abs(y) === 10) return;
+            const pTop = tPt(41, y);
+            const turnX = miterPivot.x + (y + 23) * s;
+            const turnY = pTop.y;
+            const pSide = sPt(y, 0);
+            d2Ctx.beginPath();
+            d2Ctx.moveTo(pTop.x, pTop.y);
+            d2Ctx.lineTo(turnX, turnY);
+            d2Ctx.lineTo(pSide.x, pSide.y);
+            d2Ctx.stroke();
+          });
+          d2Ctx.restore();
+        }
+
+        // -----------------------------------------------------------------------
+        // B. VẼ HÌNH CHIẾU ĐỨNG / HÌNH CẮT ĐỨNG (O'X'Z', mặt phẳng cắt y = 0)
+        // -----------------------------------------------------------------------
+        d2Ctx.save();
+        if (state.step === 1) {
+          setHidden();
+          strokePoly2D([fPt(-41, 0), fPt(41, 0), fPt(41, 40), fPt(-41, 40)], true);
+        } else if (state.step === 2) {
+          if (state.frontSection === 'none') {
+            setSolid();
+            line2D(fPt(-41, 0), fPt(-15, 0));
+            line2D(fPt(15, 0), fPt(41, 0));
+            line2D(fPt(41, 0), fPt(41, 40));
+            line2D(fPt(41, 40), fPt(-41, 40));
+            line2D(fPt(-41, 40), fPt(-41, 0));
+            d2Ctx.beginPath();
+            d2Ctx.arc(originFrontX, originFrontY, 15 * s, Math.PI, 0, false);
+            d2Ctx.stroke();
+          } else if (state.frontSection === 'half') {
+            const polyRight = [
+              fPt(0, 15),
+              ...buildFrontArcPts(Math.PI / 2, 0, 20).slice(1),
+              fPt(41, 0),
+              fPt(41, 40),
+              fPt(0, 40),
+            ];
+            hatch2DPolygon(d2Ctx, polyRight, 6.2);
+            setSolid();
+            line2D(fPt(-41, 0), fPt(-15, 0));
+            line2D(fPt(15, 0), fPt(41, 0));
+            line2D(fPt(41, 0), fPt(41, 40));
+            line2D(fPt(41, 40), fPt(-41, 40));
+            line2D(fPt(-41, 40), fPt(-41, 0));
+            d2Ctx.beginPath();
+            d2Ctx.arc(originFrontX, originFrontY, 15 * s, Math.PI, 0, false);
+            d2Ctx.stroke();
+          } else {
+            const polyFull = [
+              fPt(-41, 0),
+              ...buildFrontArcPts(Math.PI, 0, 36),
+              fPt(41, 0),
+              fPt(41, 40),
+              fPt(-41, 40),
+            ];
+            hatch2DPolygon(d2Ctx, polyFull, 6.2);
+            setSolid();
+            strokePoly2D(polyFull, true);
+          }
+        } else {
+          // Bước 3 & Bước 4:
+          const hasHole = state.step === 4;
+
+          // Đa giác tiết diện bên phải (x > 0) khi cắt tại y = 0
+          const rightCutPoly = !hasHole
+            ? [
+                fPt(0, 15),
+                ...buildFrontArcPts(Math.PI / 2, 0, 20).slice(1),
+                fPt(41, 0),
+                fPt(41, 10),
+                fPt(31, 10),
+                fPt(31, 40),
+                fPt(21, 40),
+                fPt(21, 25),
+                fPt(0, 25),
+              ]
+            : [
+                fPt(8, zAt8),
+                ...buildFrontArcPts(angAt8, 0, 16).slice(1),
+                fPt(41, 0),
+                fPt(41, 10),
+                fPt(31, 10),
+                fPt(31, 40),
+                fPt(21, 40),
+                fPt(21, 25),
+                fPt(17, 25),
+                fPt(17, 35),
+                fPt(8, 35),
+              ];
+
+          // Đa giác tiết diện bên trái (x < 0) khi cắt tại y = 0
+          const leftCutPoly = !hasHole
+            ? [
+                fPt(-41, 0),
+                ...buildFrontArcPts(Math.PI, Math.PI / 2, 20),
+                fPt(0, 25),
+                fPt(-21, 25),
+                fPt(-21, 40),
+                fPt(-31, 40),
+                fPt(-31, 10),
+                fPt(-41, 10),
+              ]
+            : [
+                fPt(-41, 0),
+                ...buildFrontArcPts(Math.PI, Math.PI - angAt8, 16),
+                fPt(-8, 35),
+                fPt(-17, 35),
+                fPt(-17, 25),
+                fPt(-21, 25),
+                fPt(-21, 40),
+                fPt(-31, 40),
+                fPt(-31, 10),
+                fPt(-41, 10),
+              ];
+
+          // 1. Tô gạch mặt cắt 45° trước
+          if (state.frontSection === 'half') {
+            hatch2DPolygon(d2Ctx, rightCutPoly, 6.2);
+          } else if (state.frontSection === 'full') {
+            hatch2DPolygon(d2Ctx, leftCutPoly, 6.2);
+            hatch2DPolygon(d2Ctx, rightCutPoly, 6.2);
+          }
+
+          // 2. Vẽ các đường bao thấy (nét liền đậm)
+          setSolid();
+          // Đáy & hai tai & hai gân nghiêng & rãnh U
+          line2D(fPt(-41, 0), fPt(-15, 0));
+          line2D(fPt(15, 0), fPt(41, 0));
+          line2D(fPt(41, 0), fPt(41, 10));
+          line2D(fPt(41, 10), fPt(31, 40)); // cạnh nghiêng phải (luôn thấy)
+          line2D(fPt(31, 40), fPt(21, 40));
+          line2D(fPt(21, 40), fPt(21, 25));
+          line2D(fPt(-21, 25), fPt(-21, 40));
+          line2D(fPt(-21, 40), fPt(-31, 40));
+          line2D(fPt(-31, 40), fPt(-41, 10)); // cạnh nghiêng trái (luôn thấy)
+          line2D(fPt(-41, 10), fPt(-41, 0));
+
+          // Hai đường ngang tai đế z = 10
+          line2D(fPt(-41, 10), fPt(-31, 10));
+          line2D(fPt(31, 10), fPt(41, 10));
+
+          // Lưu ý quy tắc TCVN: đường đứng ranh giới gân nghiêng tại x = ±31:
+          //   - Ở phần hình chiếu: VẼ nét liền đậm.
+          //   - Ở phần hình cắt dọc theo gân (y = 0): BIẾN MẤT (không vẽ xuyên qua vùng gạch mặt cắt)!
+          if (state.frontSection === 'none' || state.frontSection === 'half') {
+            line2D(fPt(-31, 10), fPt(-31, 40));
+          }
+          if (state.frontSection === 'none') {
+            line2D(fPt(31, 10), fPt(31, 40));
+          }
+
+          // Cung bán trụ đáy R15 (luôn liên tục vì phần sau y ∈ [10, 23] vẫn còn nguyên vòm R15)
+          d2Ctx.beginPath();
+          d2Ctx.arc(originFrontX, originFrontY, 15 * s, Math.PI, 0, false);
+          d2Ctx.stroke();
+
+          if (!hasHole) {
+            // Bước 3: đường sàn z = 25 liên tục từ -21 đến +21
+            line2D(fPt(-21, 25), fPt(21, 25));
+          } else {
+            // Bước 4: Trụ nổi Ø34 (z: 25->35)
+            line2D(fPt(-17, 25), fPt(-17, 35));
+            line2D(fPt(-17, 35), fPt(17, 35));
+            line2D(fPt(17, 35), fPt(17, 25));
+
+            if (state.frontSection === 'none') {
+              // Không cắt: sàn z = 25 liên tục từ -21 đến +21; lỗ x = ±8 vẽ nét đứt
+              line2D(fPt(-21, 25), fPt(21, 25));
+              setHidden();
+              line2D(fPt(-8, 35), fPt(-8, zAt8));
+              line2D(fPt(8, 35), fPt(8, zAt8));
+            } else if (state.frontSection === 'half') {
+              // Cắt bán phần (1/2):
+              //   - Nửa trái (hình chiếu): sàn z = 25 từ -21 đến 0, BỎ nét đứt x = -8 theo TCVN!
+              //   - Nửa phải (hình cắt): lỗ mở từ x = 0 đến 8 (không có nét ngang z = 25), sàn từ x = 8 đến 21;
+              //     vách lỗ x = 8 vẽ NÉT LIỀN ĐẬM từ z = 35 xuống z = 12.69!
+              line2D(fPt(-21, 25), fPt(0, 25));
+              line2D(fPt(8, 25), fPt(21, 25));
+              line2D(fPt(8, 35), fPt(8, zAt8));
+            } else {
+              // Cắt toàn phần (A-A):
+              //   - Cả hai vách lỗ x = ±8 vẽ NÉT LIỀN ĐẬM từ z = 35 xuống z = 12.69!
+              //   - Khoảng giữa x ∈ [-8, 8] mở thông hoàn toàn (không có nét ngang z = 25).
+              line2D(fPt(-21, 25), fPt(-8, 25));
+              line2D(fPt(8, 25), fPt(21, 25));
+              line2D(fPt(-8, 35), fPt(-8, zAt8));
+              line2D(fPt(8, 35), fPt(8, zAt8));
+            }
+          }
+        }
+        // Trục đối xứng đứng & ngang tâm R15
+        setCenter();
+        line2D(fPt(0, -3), fPt(0, 44));
+        line2D(fPt(-19, 0), fPt(19, 0));
+        d2Ctx.restore();
+
+        // -----------------------------------------------------------------------
+        // C. VẼ HÌNH CHIẾU BẰNG (O'X'Y') + KÝ HIỆU NÉT CẮT A-A / B-B (TCVN)
+        // -----------------------------------------------------------------------
+        d2Ctx.save();
+        if (state.step === 1) {
+          setHidden();
+          d2Ctx.strokeRect(tPt(-41, 23).x, tPt(-41, 23).y, 82 * s, 46 * s);
+        } else {
+          setSolid();
+          d2Ctx.strokeRect(tPt(-41, 23).x, tPt(-41, 23).y, 82 * s, 46 * s);
+
+          if (state.step >= 3) {
+            [-31, -21, 21, 31].forEach((x) => line2D(tPt(x, -23), tPt(x, 23)));
+            [-15, 15].forEach((y) => {
+              line2D(tPt(-41, y), tPt(-31, y));
+              line2D(tPt(31, y), tPt(41, y));
+            });
+          }
+
+          if (state.step === 4) {
+            d2Ctx.beginPath();
+            d2Ctx.arc(originTopX, originTopY, 17 * s, 0, Math.PI * 2);
+            d2Ctx.stroke();
+            d2Ctx.strokeRect(tPt(-8, 10).x, tPt(-8, 10).y, 16 * s, 20 * s);
+          }
+
+          setHidden();
+          line2D(tPt(-15, -23), tPt(-15, 23));
+          line2D(tPt(15, -23), tPt(15, 23));
+        }
+
+        // Hai trục đối xứng trung trực
+        setCenter();
+        line2D(tPt(-47, 0), tPt(47, 0));
+        line2D(tPt(0, -28), tPt(0, 28));
+
+        // Ký hiệu nét cắt A-A (khi bật Hình cắt đứng) trên Hình chiếu bằng
+        if (state.frontSection !== 'none') {
+          d2Ctx.save();
+          d2Ctx.setLineDash([]);
+          d2Ctx.strokeStyle = '#0f172a';
+          d2Ctx.fillStyle = '#0f172a';
+          d2Ctx.lineWidth = 3.2;
+
+          // Nét cắt dày hai đầu trục ngang y = 0
+          const pL1 = tPt(-45.5, 0);
+          const pL2 = tPt(-38.5, 0);
+          const pR1 = tPt(38.5, 0);
+          const pR2 = tPt(45.5, 0);
+          line2D(pL1, pL2);
+          line2D(pR1, pR2);
+
+          // Mũi tên hướng nhìn lên Hình chiếu đứng (lên trên màn hình: -Y screen)
+          const drawArrowUp = (xBase, yTip, yTail) => {
+            d2Ctx.lineWidth = 1.4;
+            line2D({ x: xBase, y: yTail }, { x: xBase, y: yTip });
+            d2Ctx.beginPath();
+            d2Ctx.moveTo(xBase, yTip);
+            d2Ctx.lineTo(xBase - 3.2, yTip + 7);
+            d2Ctx.lineTo(xBase + 3.2, yTip + 7);
+            d2Ctx.closePath();
+            d2Ctx.fill();
+          };
+          const arrTipY = pL1.y - 3;
+          const arrTailY = pL1.y + 13;
+          drawArrowUp(pL1.x + 2, arrTipY, arrTailY);
+          drawArrowUp(pR2.x - 2, arrTipY, arrTailY);
+
+          d2Ctx.font = '700 12px "Inter", sans-serif';
+          d2Ctx.textAlign = 'center';
+          d2Ctx.fillText('A', pL1.x + 2, arrTailY + 11);
+          d2Ctx.fillText('A', pR2.x - 2, arrTailY + 11);
+          d2Ctx.restore();
+        }
+
+        // Ký hiệu nét cắt B-B (khi bật Hình cắt cạnh) trên Hình chiếu bằng
+        if (state.sideSection !== 'none') {
+          d2Ctx.save();
+          d2Ctx.setLineDash([]);
+          d2Ctx.strokeStyle = '#0f172a';
+          d2Ctx.fillStyle = '#0f172a';
+          d2Ctx.lineWidth = 3.2;
+
+          const pT1 = tPt(0, 27);
+          const pT2 = tPt(0, 20.5);
+          const pB1 = tPt(0, -20.5);
+          const pB2 = tPt(0, -27);
+          line2D(pT1, pT2);
+          line2D(pB1, pB2);
+
+          // Mũi tên hướng nhìn từ trái sang phải (+X screen)
+          const drawArrowRight = (yBase, xTip, xTail) => {
+            d2Ctx.lineWidth = 1.4;
+            line2D({ x: xTail, y: yBase }, { x: xTip, y: yBase });
+            d2Ctx.beginPath();
+            d2Ctx.moveTo(xTip, yBase);
+            d2Ctx.lineTo(xTip - 7, yBase - 3.2);
+            d2Ctx.lineTo(xTip - 7, yBase + 3.2);
+            d2Ctx.closePath();
+            d2Ctx.fill();
+          };
+          const arrTipX = pT1.x + 3;
+          const arrTailX = pT1.x - 13;
+          drawArrowRight(pT1.y + 2, arrTipX, arrTailX);
+          drawArrowRight(pB2.y - 2, arrTipX, arrTailX);
+
+          d2Ctx.font = '700 12px "Inter", sans-serif';
+          d2Ctx.textAlign = 'right';
+          d2Ctx.textBaseline = 'middle';
+          d2Ctx.fillText('B', arrTailX - 4, pT1.y + 2);
+          d2Ctx.fillText('B', arrTailX - 4, pB2.y - 2);
+          d2Ctx.restore();
+        }
+        d2Ctx.restore();
+
+        // -----------------------------------------------------------------------
+        // D. VẼ HÌNH CHIẾU CẠNH / HÌNH CẮT CẠNH — HÌNH CHIẾU THỨ 3 (O'Y'Z', cắt x = 0)
+        // -----------------------------------------------------------------------
+        d2Ctx.save();
+        if (state.step === 1) {
+          setHidden();
+          d2Ctx.strokeRect(sPt(-23, 40).x, sPt(-23, 40).y, 46 * s, 40 * s);
+        } else if (state.step === 2) {
+          if (state.sideSection === 'none') {
+            setSolid();
+            d2Ctx.strokeRect(sPt(-23, 40).x, sPt(-23, 40).y, 46 * s, 40 * s);
+            setHidden();
+            line2D(sPt(-23, 15), sPt(23, 15));
+          } else if (state.sideSection === 'half') {
+            hatch2DPolygon(d2Ctx, [sPt(0, 15), sPt(23, 15), sPt(23, 40), sPt(0, 40)], 6.2);
+            setSolid();
+            d2Ctx.strokeRect(sPt(-23, 40).x, sPt(-23, 40).y, 46 * s, 40 * s);
+            line2D(sPt(0, 15), sPt(23, 15));
+          } else {
+            hatch2DPolygon(d2Ctx, [sPt(-23, 15), sPt(23, 15), sPt(23, 40), sPt(-23, 40)], 6.2);
+            setSolid();
+            d2Ctx.strokeRect(sPt(-23, 40).x, sPt(-23, 40).y, 46 * s, 40 * s);
+            line2D(sPt(-23, 15), sPt(23, 15));
+          }
+        } else {
+          // Bước 3 & Bước 4:
+          const hasHole = state.step === 4;
+
+          // Đa giác tiết diện bên phải (y > 0) khi cắt tại x = 0
+          const sideRightCutPoly = !hasHole
+            ? [sPt(0, 15), sPt(23, 15), sPt(23, 25), sPt(0, 25)]
+            : [sPt(10, 15), sPt(23, 15), sPt(23, 25), sPt(17, 25), sPt(17, 35), sPt(10, 35)];
+
+          // Đa giác tiết diện bên trái (y < 0) khi cắt tại x = 0
+          const sideLeftCutPoly = !hasHole
+            ? [sPt(-23, 15), sPt(0, 15), sPt(0, 25), sPt(-23, 25)]
+            : [sPt(-23, 15), sPt(-10, 15), sPt(-10, 35), sPt(-17, 35), sPt(-17, 25), sPt(-23, 25)];
+
+          // 1. Tô gạch mặt cắt 45°
+          if (state.sideSection === 'half') {
+            hatch2DPolygon(d2Ctx, sideRightCutPoly, 6.2);
+          } else if (state.sideSection === 'full') {
+            hatch2DPolygon(d2Ctx, sideLeftCutPoly, 6.2);
+            hatch2DPolygon(d2Ctx, sideRightCutPoly, 6.2);
+          }
+
+          // 2. Đường bao ngoài 46 × 40 & tai đế z = 10
+          setSolid();
+          d2Ctx.strokeRect(sPt(-23, 40).x, sPt(-23, 40).y, 46 * s, 40 * s);
+          line2D(sPt(-23, 10), sPt(23, 10));
+
+          // 3. Hai đường đứng của gân nghiêng rộng 30 (y = ±15, z: 10->40):
+          //    - Ở phần hình chiếu: vẽ liền suốt từ z = 10 lên z = 40.
+          //    - Ở phần hình cắt: gân nằm PHÍA SAU mặt cắt x = 0 (z ∈ [15, 25] bị mặt cắt che),
+          //      nên chỉ thấy đoạn dưới z ∈ [10, 15] và đoạn trên z ∈ [25, 40]!
+          if (state.sideSection === 'none' || state.sideSection === 'half') {
+            line2D(sPt(-15, 10), sPt(-15, 40));
+          } else {
+            line2D(sPt(-15, 10), sPt(-15, 15));
+            line2D(sPt(-15, 25), sPt(-15, 40));
+          }
+
+          if (state.sideSection === 'none') {
+            line2D(sPt(15, 10), sPt(15, 40));
+          } else {
+            line2D(sPt(15, 10), sPt(15, 15));
+            line2D(sPt(15, 25), sPt(15, 40));
+          }
+
+          // 4. Các nét đặc trưng theo chế độ cắt của Hình chiếu cạnh
+          if (state.sideSection === 'none') {
+            if (hasHole) {
+              line2D(sPt(-17, 25), sPt(-17, 35));
+              line2D(sPt(-17, 35), sPt(17, 35));
+              line2D(sPt(17, 35), sPt(17, 25));
+            }
+            setHidden();
+            line2D(sPt(-23, 25), sPt(23, 25));
+            if (!hasHole) {
+              line2D(sPt(-23, 15), sPt(23, 15));
+            } else {
+              line2D(sPt(-23, 15), sPt(-10, 15));
+              line2D(sPt(10, 15), sPt(23, 15));
+              line2D(sPt(-10, 35), sPt(-10, zAt8));
+              line2D(sPt(10, 35), sPt(10, zAt8));
+              line2D(sPt(-10, zAt8), sPt(10, zAt8));
+            }
+          } else if (state.sideSection === 'half') {
+            // Nửa trái (y < 0): HÌNH CHIẾU -> lược bỏ toàn bộ nét đứt khuất theo TCVN!
+            // Nửa phải (y > 0): HÌNH CẮT tại x = 0 -> đường bao tiết diện vẽ NÉT LIỀN ĐẬM!
+            if (!hasHole) {
+              line2D(sPt(0, 15), sPt(23, 15));
+              line2D(sPt(0, 25), sPt(23, 25));
+            } else {
+              // Nửa trái trụ Ø34 (hình chiếu)
+              line2D(sPt(-17, 25), sPt(-17, 35));
+              line2D(sPt(-17, 35), sPt(0, 35));
+              // Nửa phải tiết diện chữ L (hình cắt)
+              line2D(sPt(10, 15), sPt(23, 15));
+              line2D(sPt(10, 15), sPt(10, 35));
+              line2D(sPt(10, 35), sPt(17, 35));
+              line2D(sPt(17, 35), sPt(17, 25));
+              line2D(sPt(17, 25), sPt(23, 25));
+              // Phần vách lỗ phía sau (x = +8) lộ ra trong khoảng y ∈ [0, 10]
+              line2D(sPt(0, zAt8), sPt(10, zAt8));
+              line2D(sPt(10, zAt8), sPt(10, 15));
+            }
+          } else {
+            // Cắt toàn phần (B-B): cả hai nửa trái & phải đều là HÌNH CẮT tại x = 0!
+            if (!hasHole) {
+              line2D(sPt(-23, 15), sPt(23, 15));
+              line2D(sPt(-23, 25), sPt(23, 25));
+            } else {
+              // Tiết diện chữ L bên trái
+              line2D(sPt(-23, 15), sPt(-10, 15));
+              line2D(sPt(-10, 15), sPt(-10, 35));
+              line2D(sPt(-17, 35), sPt(-10, 35));
+              line2D(sPt(-17, 25), sPt(-17, 35));
+              line2D(sPt(-23, 25), sPt(-17, 25));
+              // Tiết diện chữ L bên phải
+              line2D(sPt(10, 15), sPt(23, 15));
+              line2D(sPt(10, 15), sPt(10, 35));
+              line2D(sPt(10, 35), sPt(17, 35));
+              line2D(sPt(17, 35), sPt(17, 25));
+              line2D(sPt(17, 25), sPt(23, 25));
+              // Phần vách lỗ phía sau (x = +8) lộ ra ở đáy khoảng trống y ∈ [-10, 10]
+              line2D(sPt(-10, zAt8), sPt(10, zAt8));
+              line2D(sPt(-10, zAt8), sPt(-10, 15));
+              line2D(sPt(10, zAt8), sPt(10, 15));
+            }
+          }
+        }
+        setCenter();
+        line2D(sPt(0, -3), sPt(0, 44));
+        d2Ctx.restore();
+
+        // -----------------------------------------------------------------------
+        // E. TIÊU ĐỀ CÁC HÌNH CHIẾU / HÌNH CẮT & KÍCH THƯỚC 2D CHUẨN TCVN
+        // -----------------------------------------------------------------------
+        const drawLabel = (pt, text, highlight = false) => {
+          d2Ctx.save();
+          d2Ctx.font = '700 11px "Inter", sans-serif';
+          d2Ctx.fillStyle = highlight ? '#b45309' : '#0369a1';
+          d2Ctx.textAlign = 'center';
+          d2Ctx.fillText(text, pt.x, pt.y);
+          d2Ctx.restore();
+        };
+
+        const frontTitle =
+          state.frontSection === 'full'
+            ? 'HÌNH CẮT ĐỨNG A-A'
+            : state.frontSection === 'half'
+              ? 'HÌNH CẮT ĐỨNG BÁN PHẦN'
+              : 'HÌNH CHIẾU ĐỨNG';
+
+        const sideTitle =
+          state.sideSection === 'full'
+            ? 'HÌNH CẮT CẠNH B-B'
+            : state.sideSection === 'half'
+              ? 'HÌNH CẮT CẠNH BÁN PHẦN'
+              : 'HÌNH CHIẾU CẠNH';
+
+        drawLabel(fPt(0, 46), frontTitle, state.frontSection !== 'none');
+        drawLabel(tPt(0, -29.5), 'HÌNH CHIẾU BẰNG', false);
+        drawLabel(sPt(0, 46), sideTitle, state.sideSection !== 'none');
+
+        if (state.show2DDims) {
+          const dim2D = (p1, p2, offsetPx, label, vertical = false) => {
+            d2Ctx.save();
+            d2Ctx.strokeStyle = '#b45309';
+            d2Ctx.fillStyle = '#92400e';
+            d2Ctx.lineWidth = 0.95;
+            d2Ctx.setLineDash([]);
+
+            let a1, a2, e1, e2;
+            const sign = offsetPx >= 0 ? 1 : -1;
+            if (!vertical) {
+              a1 = { x: p1.x, y: p1.y + offsetPx };
+              a2 = { x: p2.x, y: p2.y + offsetPx };
+              e1 = { x: p1.x, y: a1.y + 3 * sign };
+              e2 = { x: p2.x, y: a2.y + 3 * sign };
+            } else {
+              a1 = { x: p1.x + offsetPx, y: p1.y };
+              a2 = { x: p2.x + offsetPx, y: p2.y };
+              e1 = { x: a1.x + 3 * sign, y: p1.y };
+              e2 = { x: a2.x + 3 * sign, y: p2.y };
+            }
+
+            d2Ctx.beginPath();
+            d2Ctx.moveTo(p1.x, p1.y);
+            d2Ctx.lineTo(e1.x, e1.y);
+            d2Ctx.moveTo(p2.x, p2.y);
+            d2Ctx.lineTo(e2.x, e2.y);
+            d2Ctx.moveTo(a1.x, a1.y);
+            d2Ctx.lineTo(a2.x, a2.y);
+            d2Ctx.stroke();
+
+            const ang = Math.atan2(a2.y - a1.y, a2.x - a1.x);
+            const arr = 5.5;
+            const arrow = (x, y, a) => {
+              d2Ctx.beginPath();
+              d2Ctx.moveTo(x, y);
+              d2Ctx.lineTo(x - arr * Math.cos(a - 0.3), y - arr * Math.sin(a - 0.3));
+              d2Ctx.lineTo(x - arr * Math.cos(a + 0.3), y - arr * Math.sin(a + 0.3));
+              d2Ctx.closePath();
+              d2Ctx.fill();
+            };
+            arrow(a2.x, a2.y, ang);
+            arrow(a1.x, a1.y, ang + Math.PI);
+
+            const mx = (a1.x + a2.x) * 0.5 + (vertical ? sign * 9 : 0);
+            const my = (a1.y + a2.y) * 0.5 + (vertical ? 0 : sign * 8);
+            d2Ctx.font = '700 10px "JetBrains Mono", monospace';
+            d2Ctx.textAlign = 'center';
+            d2Ctx.textBaseline = 'middle';
+            d2Ctx.lineWidth = 3;
+            d2Ctx.strokeStyle = '#fdfdfb';
+            d2Ctx.strokeText(label, mx, my);
+            d2Ctx.fillText(label, mx, my);
+            d2Ctx.restore();
+          };
+
+          // Kích thước trên Hình chiếu đứng
+          dim2D(fPt(-41, 0), fPt(41, 0), 14, '82', false);
+          dim2D(fPt(41, 0), fPt(41, 40), 15, '40', true);
+          if (state.step >= 3) {
+            dim2D(fPt(-21, 40), fPt(21, 40), -12, '42', false);
+            dim2D(fPt(-41, 0), fPt(-41, 10), -13, '10', true);
+            dim2D(fPt(-21, 25), fPt(-21, 40), -11, '15', true);
+          }
+          if (state.step === 4) {
+            dim2D(fPt(17, 25), fPt(17, 35), 11, '10', true);
+          }
+
+          // Kích thước trên Hình chiếu bằng
+          dim2D(tPt(41, -23), tPt(41, 23), 14, '46', true);
+          if (state.step >= 3) {
+            dim2D(tPt(-31, -23), tPt(31, -23), 13, '62', false);
+            dim2D(tPt(-41, -15), tPt(-41, 15), -13, '30', true);
+          }
+          if (state.step === 4) {
+            dim2D(tPt(-8, 10), tPt(8, 10), -10, '16', false);
+            dim2D(tPt(-8, -10), tPt(-8, 10), -10, '20', true);
+          }
+        }
+
+        d2Ctx.restore();
+      }
+
+      // ==========================================================================
+      // 6. VÒNG LẶP RENDER 60 FPS & TƯƠNG TÁC CHUỘT / CẢM ỨNG / NÚT BẤM
+      // ==========================================================================
+      function updateCameraTransform(width, height) {
+        const ease = 0.16;
+        state.theta += (state.targetTheta - state.theta) * ease;
+        state.phi += (state.targetPhi - state.phi) * ease;
+        state.zoom += (state.targetZoom - state.zoom) * ease;
+
+        const aspect = width / height;
+        const viewHalfH = 52 / state.zoom;
+        camera.left = -viewHalfH * aspect;
+        camera.right = viewHalfH * aspect;
+        camera.top = viewHalfH;
+        camera.bottom = -viewHalfH;
+        camera.updateProjectionMatrix();
+
+        const radius = 190;
+        const sinPhi = Math.sin(state.phi);
+        camera.position.set(
+          TARGET_CENTER.x + radius * sinPhi * Math.sin(state.theta),
+          TARGET_CENTER.y + radius * Math.cos(state.phi),
+          TARGET_CENTER.z + radius * sinPhi * Math.cos(state.theta)
+        );
+        camera.lookAt(TARGET_CENTER);
+      }
+
+      function animate() {
+        const rect = threeContainer.getBoundingClientRect();
+        const width = Math.max(280, Math.floor(rect.width));
+        const height = Math.max(300, Math.floor(rect.height));
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        if (
+          threeCanvas.width !== Math.floor(width * dpr) ||
+          threeCanvas.height !== Math.floor(height * dpr)
+        ) {
+          renderer.setSize(width, height, false);
+          hudCanvas.width = Math.floor(width * dpr);
+          hudCanvas.height = Math.floor(height * dpr);
+        }
+
+        updateCameraTransform(width, height);
+        renderer.render(scene, camera);
+
+        hudCtx.save();
+        hudCtx.scale(dpr, dpr);
+        drawHudOverlay(width, height);
+        hudCtx.restore();
+
+        requestAnimationFrame(animate);
+      }
+
+      // Kéo chuột / cảm ứng xoay 360°
+      let isDragging = false;
+      let prevX = 0;
+      let prevY = 0;
+
+      threeCanvas.addEventListener('pointerdown', (e) => {
+        isDragging = true;
+        prevX = e.clientX;
+        prevY = e.clientY;
+        threeCanvas.setPointerCapture(e.pointerId);
+        state.activePreset = 'custom';
+        updatePresetButtons();
+      });
+
+      threeCanvas.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - prevX;
+        const dy = e.clientY - prevY;
+        prevX = e.clientX;
+        prevY = e.clientY;
+
+        state.targetTheta -= dx * 0.0085;
+        state.targetPhi = Math.max(
+          0.02,
+          Math.min(Math.PI - 0.02, state.targetPhi - dy * 0.0085)
+        );
+        document.getElementById('hudViewTitle').textContent =
+          'Góc nhìn: Xoay 360° tự do trong không gian';
+      });
+
+      const endDrag = (e) => {
+        if (isDragging) {
+          isDragging = false;
+          try {
+            threeCanvas.releasePointerCapture(e.pointerId);
+          } catch (_) {}
+        }
+      };
+      threeCanvas.addEventListener('pointerup', endDrag);
+      threeCanvas.addEventListener('pointercancel', endDrag);
+
+      threeCanvas.addEventListener(
+        'wheel',
+        (e) => {
+          e.preventDefault();
+          const factor = e.deltaY < 0 ? 1.09 : 0.92;
+          setZoom(state.targetZoom * factor);
+        },
+        { passive: false }
+      );
+
+      function setZoom(val) {
+        state.targetZoom = Math.max(0.55, Math.min(2.3, val));
+        document.getElementById('zoomLabel').textContent =
+          `${Math.round(state.targetZoom * 100)}%`;
+      }
+
+      document.getElementById('btnZoomIn').addEventListener('click', () => setZoom(state.targetZoom * 1.15));
+      document.getElementById('btnZoomOut').addEventListener('click', () => setZoom(state.targetZoom * 0.87));
+
+      // Các góc nhìn chuẩn TCVN
+      function updatePresetButtons() {
+        const map = {
+          iso: 'btnViewIso',
+          front: 'btnViewFront',
+          top: 'btnViewTop',
+          side: 'btnViewSide',
+        };
+        document.querySelectorAll('.view-btn').forEach((btn) => {
+          btn.className =
+            'view-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition cursor-pointer';
+        });
+        const activeId = map[state.activePreset];
+        if (activeId) {
+          document.getElementById(activeId).className =
+            'view-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 text-white shadow-sm transition cursor-pointer';
+        }
+      }
+
+      function applyViewPreset(preset) {
+        state.activePreset = preset;
+        const titleEl = document.getElementById('hudViewTitle');
+        if (preset === 'iso') {
+          state.targetTheta = ISO_THETA;
+          state.targetPhi = ISO_PHI;
+          titleEl.textContent = 'Góc nhìn: Trục đo vuông góc đều (120°)';
+        } else if (preset === 'front') {
+          state.targetTheta = 0;
+          state.targetPhi = Math.PI / 2;
+          titleEl.textContent = "Góc nhìn: Hình chiếu đứng (mặt phẳng O'X'Z')";
+        } else if (preset === 'top') {
+          state.targetTheta = 0;
+          state.targetPhi = 0.015;
+          titleEl.textContent = "Góc nhìn: Hình chiếu bằng (mặt phẳng O'X'Y')";
+        } else if (preset === 'side') {
+          state.targetTheta = -Math.PI / 2;
+          state.targetPhi = Math.PI / 2;
+          titleEl.textContent = "Góc nhìn: Hình chiếu cạnh (mặt phẳng O'Y'Z')";
+        }
+        updatePresetButtons();
+      }
+
+      document.getElementById('btnViewIso').addEventListener('click', () => applyViewPreset('iso'));
+      document.getElementById('btnViewFront').addEventListener('click', () => applyViewPreset('front'));
+      document.getElementById('btnViewTop').addEventListener('click', () => applyViewPreset('top'));
+      document.getElementById('btnViewSide').addEventListener('click', () => applyViewPreset('side'));
+      document.getElementById('btnResetCamera').addEventListener('click', () => {
+        setZoom(1.0);
+        applyViewPreset('iso');
+      });
+
+      // Quy trình dựng hình 4 bước
+      const STEPS = {
+        1: {
+          title: "Bước 1: Dựng hệ trục đo vuông góc đều O'X'Y'Z' & hộp bao 82×46×40",
+          desc: "Đặt gốc O' tại tâm đáy rãnh R15; trục O'Z' thẳng đứng, hai trục O'X' và O'Y' nghiêng 30° xuống dưới phương ngang tạo ba góc 120° với hệ số biến dạng p = q = r = 1.",
+        },
+        2: {
+          title: 'Bước 2: Khoét rãnh bán trụ đáy R15 suốt chiều rộng 46',
+          desc: 'Từ khối hộp bao 82 × 46 × 40, khoét rãnh nửa hình trụ bán kính R15 ở chính giữa mặt đáy (x ∈ [-15, 15], z ∈ [0, 15]) xuyên suốt chiều sâu y ∈ [-23, 23].',
+        },
+        3: {
+          title: 'Bước 3: Tạo thân chữ U (rãnh 42×15), hai tai đế 10 & hai gân nghiêng 30',
+          desc: 'Hạ hai tai đế hai bên xuống cao độ z = 10, khoét rãnh chữ U rộng 42 sâu 15 ở đỉnh (mặt sàn z = 25), đồng thời dựng hai gân nghiêng rộng 30 vát từ z = 10 lên z = 40.',
+        },
+        4: {
+          title: 'Bước 4: Dựng trụ nổi Ø34 & khoét lỗ chữ nhật 16×20 xuyên suốt',
+          desc: 'Trên mặt sàn z = 25, dựng khối trụ tròn Ø34 cao thêm 10 (đỉnh z = 35), sau đó khoét lỗ chữ nhật 16×20 xuyên thẳng từ z = 35 xuống thông với rãnh bán trụ R15.',
+        },
+      };
+
+      function setStep(stepNum) {
+        state.step = Math.max(1, Math.min(4, stepNum));
+        document.getElementById('stepBadge').textContent = `Bước ${state.step} / 4`;
+        document.getElementById('stepTitle').textContent = STEPS[state.step].title;
+        document.getElementById('stepDesc').textContent = STEPS[state.step].desc;
+        document.getElementById('btnPrevStep').disabled = state.step === 1;
+        document.getElementById('btnNextStep').disabled = state.step === 4;
+
+        document.querySelectorAll('.step-tab').forEach((tab) => {
+          const sNum = Number(tab.dataset.step);
+          const circle = tab.querySelector('span:first-child');
+          if (sNum === state.step) {
+            tab.className =
+              'step-tab px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-sky-600 bg-sky-600 text-white shadow-2xs transition cursor-pointer flex items-center gap-1.5';
+            if (circle) circle.className = 'w-4 h-4 rounded-full text-[11px] flex items-center justify-center font-mono bg-white text-sky-700 font-bold';
+          } else {
+            tab.className =
+              'step-tab px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1.5';
+            if (circle) circle.className = 'w-4 h-4 rounded-full text-[11px] flex items-center justify-center font-mono bg-slate-100 text-slate-600';
+          }
+        });
+
+        rebuildSceneObjects();
+        draw2DOrthographicSheet();
+      }
+
+      document.querySelectorAll('.step-tab').forEach((tab) => {
+        tab.addEventListener('click', () => setStep(Number(tab.dataset.step)));
+      });
+      document.getElementById('btnPrevStep').addEventListener('click', () => setStep(state.step - 1));
+      document.getElementById('btnNextStep').addEventListener('click', () => setStep(state.step + 1));
+
+      // Các checkbox & nút điều khiển cắt 3D / 2D
+      function updateCut3DButtons() {
+        const labels = {
+          none: 'Nguyên khối',
+          front: 'Cắt đứng (y = 0)',
+          side: 'Cắt cạnh (x = 0)',
+          quarter: 'Cắt 1/4 vật thể',
+        };
+        document.getElementById('cut3DModeTag').textContent = labels[state.cutMode3D] || 'Nguyên khối';
+
+        document.querySelectorAll('.cut3d-btn').forEach((btn) => {
+          const mode = btn.dataset.cut3d;
+          if (mode === state.cutMode3D) {
+            btn.className =
+              'cut3d-btn px-2.5 py-2 rounded-xl text-xs font-semibold border border-amber-500 bg-amber-50 text-amber-950 shadow-2xs transition cursor-pointer text-left';
+          } else {
+            btn.className =
+              'cut3d-btn px-2.5 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition cursor-pointer text-left';
+          }
+        });
+
+        const badge = document.getElementById('cutawayBadge');
+        if (state.cutMode3D === 'none') {
+          badge.classList.add('hidden');
+        } else {
+          badge.classList.remove('hidden');
+          const badgeTexts = {
+            front: '✂ Cắt 3D theo Hình chiếu đứng (mặt phẳng y = 0)',
+            side: '✂ Cắt 3D theo Hình chiếu cạnh (mặt phẳng x = 0)',
+            quarter: '✂ Cắt 1/4 vật thể (lộ đồng thời mặt cắt y = 0 & x = 0)',
+          };
+          badge.textContent = badgeTexts[state.cutMode3D];
+        }
+      }
+
+      function setCutMode3D(mode) {
+        state.cutMode3D = mode;
+        updateCut3DButtons();
+        rebuildSceneObjects();
+      }
+
+      function sync3DFrom2DSections() {
+        if (!state.sync3DCut) return;
+        const hasF = state.frontSection !== 'none';
+        const hasS = state.sideSection !== 'none';
+        if (hasF && hasS) setCutMode3D('quarter');
+        else if (hasF) setCutMode3D('front');
+        else if (hasS) setCutMode3D('side');
+        else setCutMode3D('none');
+      }
+
+      function update2DSectionButtons() {
+        const fLabels = { none: 'Không cắt', half: 'Bán phần (1/2)', full: 'Toàn phần A-A' };
+        const sLabels = { none: 'Không cắt', half: 'Bán phần (1/2)', full: 'Toàn phần B-B' };
+        document.getElementById('frontSecBadge').textContent = fLabels[state.frontSection];
+        document.getElementById('sideSecBadge').textContent = sLabels[state.sideSection];
+
+        document.querySelectorAll('.fsec-btn').forEach((btn) => {
+          const active = btn.dataset.fsec === state.frontSection;
+          btn.className = active
+            ? 'fsec-btn px-2 py-1.5 rounded-lg text-xs font-semibold border border-sky-600 bg-sky-600 text-white shadow-2xs transition cursor-pointer'
+            : 'fsec-btn px-2 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition cursor-pointer';
+        });
+
+        document.querySelectorAll('.ssec-btn').forEach((btn) => {
+          const active = btn.dataset.ssec === state.sideSection;
+          btn.className = active
+            ? 'ssec-btn px-2 py-1.5 rounded-lg text-xs font-semibold border border-emerald-600 bg-emerald-600 text-white shadow-2xs transition cursor-pointer'
+            : 'ssec-btn px-2 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition cursor-pointer';
+        });
+
+        // Cập nhật giải thích quy tắc TCVN theo chế độ cắt
+        const noteEl = document.getElementById('tcvnSectionNote');
+        const notes = [];
+        if (state.frontSection !== 'none') {
+          notes.push(
+            '<strong>Hình cắt đứng (y = 0):</strong> Mặt phẳng cắt đi dọc qua gân nghiêng nên đường đứng <span class="font-mono">x = ±31</span> biến mất trong vùng gạch mặt cắt 45°; lỗ <span class="font-mono">16×20</span> lộ nét liền đậm từ <span class="font-mono">z = 35</span> xuống <span class="font-mono">z = 12.69</span>.'
+          );
+        }
+        if (state.sideSection !== 'none') {
+          notes.push(
+            '<strong>Hình cắt cạnh (x = 0):</strong> Gạch mặt cắt 45° tiết diện chữ L (<span class="font-mono">y ∈ [10, 23]</span>); nét đứt khuất được lược bỏ ở nửa hình chiếu khi cắt bán phần (1/2) theo TCVN.'
+          );
+        }
+        if (notes.length === 0) {
+          noteEl.innerHTML =
+            '<strong>Quy tắc TCVN hiện hành:</strong> Đang hiển thị 3 hình chiếu vuông góc tiêu chuẩn; các cạnh khuất bên trong (lỗ <span class="font-mono">16×20</span>, vòm <span class="font-mono">R15</span>, sàn rãnh <span class="font-mono">U</span>) được biểu diễn bằng <strong>nét đứt mảnh</strong>.';
+        } else {
+          noteEl.innerHTML = notes.join(' &nbsp;•&nbsp; ');
+        }
+      }
+
+      document.querySelectorAll('.cut3d-btn').forEach((btn) => {
+        btn.addEventListener('click', () => setCutMode3D(btn.dataset.cut3d));
+      });
+
+      document.getElementById('chkSync3DCut').addEventListener('change', (e) => {
+        state.sync3DCut = e.target.checked;
+        if (state.sync3DCut) sync3DFrom2DSections();
+      });
+
+      document.querySelectorAll('.fsec-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.frontSection = btn.dataset.fsec;
+          update2DSectionButtons();
+          sync3DFrom2DSections();
+          draw2DOrthographicSheet();
+        });
+      });
+
+      document.querySelectorAll('.ssec-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.sideSection = btn.dataset.ssec;
+          update2DSectionButtons();
+          sync3DFrom2DSections();
+          draw2DOrthographicSheet();
+        });
+      });
+
+      document.getElementById('chkHiddenLines').addEventListener('change', (e) => {
+        state.showHiddenLines = e.target.checked;
+        rebuildSceneObjects();
+      });
+
+      document.getElementById('chkAxes').addEventListener('change', (e) => {
+        state.showAxes = e.target.checked;
+        rebuildSceneObjects();
+      });
+
+      document.getElementById('chkDims3D').addEventListener('change', (e) => {
+        state.showDims3D = e.target.checked;
+      });
+
+      document.getElementById('chk2DProjectors').addEventListener('change', (e) => {
+        state.show2DProjectors = e.target.checked;
+        draw2DOrthographicSheet();
+      });
+
+      document.getElementById('chk2DDims').addEventListener('change', (e) => {
+        state.show2DDims = e.target.checked;
+        draw2DOrthographicSheet();
+      });
+
+      window.addEventListener('resize', () => {
+        draw2DOrthographicSheet();
+      });
+
+      // Khởi chạy ứng dụng khi tải xong
+      window.addEventListener('load', () => {
+        updateCut3DButtons();
+        update2DSectionButtons();
+        setStep(4);
+        updatePresetButtons();
+        draw2DOrthographicSheet();
+        animate();
+      });
+    })();
+  </script>
+</body>
+</html>
